@@ -32,15 +32,15 @@ export default function QuizDetails() {
   if (!quiz) return <div>Loading...</div>;
 
   const handleStartQuiz = () => {
-    router.push(`/Kambaz/Courses/${cid}/Quizzes/${qid}/take`);
+    router.push(`/Courses/${cid}/Quizzes/${qid}/take`); // FIXED
   };
 
   const handlePreview = () => {
-    router.push(`/Kambaz/Courses/${cid}/Quizzes/${qid}/preview`);
+    router.push(`/Courses/${cid}/Quizzes/${qid}/preview`); // FIXED
   };
 
   const handleEdit = () => {
-    router.push(`/Kambaz/Courses/${cid}/Quizzes/${qid}/edit`);
+    router.push(`/Courses/${cid}/Quizzes/${qid}/edit`); // FIXED
   };
 
   return (

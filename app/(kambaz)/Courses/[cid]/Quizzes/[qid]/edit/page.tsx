@@ -29,7 +29,7 @@ export default function QuizEditor() {
   const handleSave = async () => {
     try {
       await client.updateQuiz(quiz);
-      router.push(`/Kambaz/Courses/${cid}/Quizzes/${qid}`);
+      router.push(`/Courses/${cid}/Quizzes/${qid}`); // FIXED
     } catch (error) {
       console.error("Error saving quiz:", error);
     }
@@ -39,14 +39,14 @@ export default function QuizEditor() {
     try {
       await client.updateQuiz({ ...quiz, published: true });
       await client.publishQuiz(qid);
-      router.push(`/Kambaz/Courses/${cid}/Quizzes`);
+      router.push(`/Courses/${cid}/Quizzes`); // FIXED
     } catch (error) {
       console.error("Error saving and publishing quiz:", error);
     }
   };
 
   const handleCancel = () => {
-    router.push(`/Kambaz/Courses/${cid}/Quizzes`);
+    router.push(`/Courses/${cid}/Quizzes`); // FIXED
   };
 
   if (!quiz) return <div>Loading...</div>;
@@ -191,7 +191,6 @@ export default function QuizEditor() {
           </Tab.Pane>
 
           <Tab.Pane eventKey="questions">
-            {/* Questions editor will be imported */}
             <QuestionsEditor quiz={quiz} setQuiz={setQuiz} />
           </Tab.Pane>
         </Tab.Content>
@@ -288,7 +287,7 @@ function QuestionsEditor({ quiz, setQuiz }: { quiz: any; setQuiz: (quiz: any) =>
 
       {quiz.questions?.length === 0 ? (
         <div className="text-center p-5 border rounded">
-          <p className="text-muted">No questions yet. Click &quot;+ New Question&quot;  to add one.</p>
+          <p className="text-muted">No questions yet. Click &quot;+ New Question&quot; to add one.</p>
         </div>
       ) : (
         <div className="list-group">

@@ -43,7 +43,7 @@ export default function Quizzes() {
         description: "New quiz description",
       });
       dispatch(setQuizzes([...quizzes, newQuiz]));
-      router.push(`/Kambaz/Courses/${cid}/Quizzes/${newQuiz._id}/edit`);
+      router.push(`/Courses/${cid}/Quizzes/${newQuiz._id}/edit`); // FIXED
     } catch (error) {
       console.error("Error creating quiz:", error);
     }
@@ -116,7 +116,8 @@ export default function Quizzes() {
 
       {filteredQuizzes.length === 0 && isFaculty ? (
         <div className="text-center p-5 border rounded">
-<p className="text-muted">No quizzes yet. Click the &quot;+ Quiz&quot; button to create one.</p>        </div>
+          <p className="text-muted">No quizzes yet. Click the &quot;+ Quiz&quot; button to create one.</p>
+        </div>
       ) : (
         <div className="list-group">
           <div className="list-group-item bg-light">
@@ -133,7 +134,7 @@ export default function Quizzes() {
                       <FaBan className="text-danger" />
                     )}
                     <Link
-                      href={`/Kambaz/Courses/${cid}/Quizzes/${quiz._id}`}
+                      href={`/Courses/${cid}/Quizzes/${quiz._id}`}
                       className="text-decoration-none text-dark fw-bold"
                     >
                       {quiz.title}
@@ -152,7 +153,7 @@ export default function Quizzes() {
                       <BsThreeDotsVertical />
                     </Dropdown.Toggle>
                     <Dropdown.Menu>
-                      <Dropdown.Item onClick={() => router.push(`/Kambaz/Courses/${cid}/Quizzes/${quiz._id}/edit`)}>
+                      <Dropdown.Item onClick={() => router.push(`/Courses/${cid}/Quizzes/${quiz._id}/edit`)}>
                         Edit
                       </Dropdown.Item>
                       <Dropdown.Item onClick={() => handleDelete(quiz._id)}>

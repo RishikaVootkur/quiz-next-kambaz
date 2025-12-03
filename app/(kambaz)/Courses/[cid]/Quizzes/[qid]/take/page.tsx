@@ -23,11 +23,9 @@ export default function TakeQuiz() {
         const quizData = await client.findQuizById(qid);
         setQuiz(quizData);
 
-        // Check for existing attempts
         const attempts = await client.getAttemptsForQuiz(qid);
         const attemptCount = attempts.length;
 
-        // Check if user can take quiz
         if (!quizData.multipleAttempts && attemptCount >= 1) {
           setError("You have already completed this quiz.");
           return;
@@ -38,7 +36,6 @@ export default function TakeQuiz() {
           return;
         }
 
-        // Start new attempt
         const newAttempt = await client.startAttempt(qid);
         setAttempt(newAttempt);
       } catch (error: any) {
@@ -79,7 +76,7 @@ export default function TakeQuiz() {
     return (
       <div className="p-4">
         <Alert variant="danger">{error}</Alert>
-        <Button onClick={() => router.push(`/Kambaz/Courses/${cid}/Quizzes`)}>
+        <Button onClick={() => router.push(`/Courses/${cid}/Quizzes`)}>
           Back to Quizzes
         </Button>
       </div>
@@ -153,7 +150,7 @@ export default function TakeQuiz() {
           ))}
 
           <div className="d-flex gap-2">
-            <Button variant="secondary" onClick={() => router.push(`/Kambaz/Courses/${cid}/Quizzes`)}>
+            <Button variant="secondary" onClick={() => router.push(`/Courses/${cid}/Quizzes`)}>
               Cancel
             </Button>
             <Button variant="danger" onClick={handleSubmit}>
@@ -197,7 +194,7 @@ export default function TakeQuiz() {
             </>
           )}
 
-          <Button variant="primary" onClick={() => router.push(`/Kambaz/Courses/${cid}/Quizzes`)}>
+          <Button variant="primary" onClick={() => router.push(`/Courses/${cid}/Quizzes`)}>
             Back to Quizzes
           </Button>
         </>
