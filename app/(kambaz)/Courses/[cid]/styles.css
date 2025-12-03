@@ -1,0 +1,13 @@
+#wd-courses-navigation .list-group-item {
+  border-left: 4px solid transparent;
+}
+
+#wd-courses-navigation .list-group-item.wd-active {
+  color: black !important;
+  border-left: 4px solid black !important;
+  background-color: #f8f9fa !important;
+}
+
+.wd-lesson {
+  border-left: 3px solid green !important;
+}

@@ -1,0 +1,15 @@
+#wd-account-navigation .nav-link {
+  border-left: 4px solid transparent;
+  color: #dc3545 !important;
+  border-radius: 0 !important;
+  background-color: white !important
+}
+
+#wd-account-navigation .nav-link.active {
+  color: black !important;         
+  border-left: 4px solid black !important;     
+  background-color: #f8f9fa;       
+  border-left: 4px solid transparent;
+  color: #dc3545;
+  border-radius: 0 !important;
+}

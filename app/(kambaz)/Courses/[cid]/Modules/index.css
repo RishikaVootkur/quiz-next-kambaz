@@ -1,0 +1,37 @@
+.wd-content {
+    list-style-type: none !important;
+    padding-left: 0 !important;
+  }
+  
+  .wd-content-item {
+    display: flex !important;
+    align-items: center !important;
+    padding: 8px 0 !important;
+  }
+  
+  .wd-lesson {
+    display: flex !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+  }
+  
+  .wd-title {
+    display: flex !important;
+    align-items: center !important;
+  }
+  
+  #wd-modules {
+    color: rgb(122, 125, 128) !important;
+  }
+  
+  .wd-module {
+    border-left: 4px solid #28a745 !important;
+  }
+
+  .wd-title {
+    border-left: 4px solid #28a745;
+  }
+  
+  .wd-lessons .list-group-item {
+    display: block !important;
+  }
