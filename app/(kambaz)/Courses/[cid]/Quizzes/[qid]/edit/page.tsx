@@ -177,7 +177,7 @@ export default function QuizEditor() {
               </Form.Group>
 
               <div className="d-flex gap-2 justify-content-end">
-                <Button variant="secondary" onClick={handleCancel}>
+                <Button variant="light" onClick={handleCancel}>
                   Cancel
                 </Button>
                 <Button variant="primary" onClick={handleSave}>
@@ -448,7 +448,7 @@ function QuestionEditor({
                 </Button>
               </div>
             ))}
-            <Button variant="secondary" size="sm" onClick={handleAddChoice}>
+            <Button variant="light" size="sm" onClick={handleAddChoice}>
               + Add Choice
             </Button>
           </div>
@@ -494,7 +494,7 @@ function QuestionEditor({
                 </Button>
               </div>
             ))}
-            <Button variant="secondary" size="sm" onClick={handleAddPossibleAnswer}>
+            <Button variant="light" size="sm" onClick={handleAddPossibleAnswer}>
               + Add Answer
             </Button>
             <Form.Check
@@ -508,7 +508,7 @@ function QuestionEditor({
         )}
 
         <div className="d-flex gap-2 justify-content-end">
-          <Button variant="secondary" onClick={onCancel}>
+          <Button variant="light" onClick={onCancel}>
             Cancel
           </Button>
           <Button variant="danger" onClick={() => onSave(question)}>

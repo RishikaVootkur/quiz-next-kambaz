@@ -67,7 +67,7 @@ export default function PeopleDetails({
       </button>
 
       <div className="text-center mt-2">
-        <FaUserCircle className="text-secondary me-2 fs-1" />
+        <FaUserCircle className="text-light me-2 fs-1" />
       </div>
       <hr />
 
@@ -121,7 +121,7 @@ export default function PeopleDetails({
       </button>
       <button
         onClick={onClose}
-        className="btn btn-secondary float-end me-2 wd-cancel"
+        className="btn btn-light float-end me-2 wd-cancel"
       >
         Cancel
       </button>

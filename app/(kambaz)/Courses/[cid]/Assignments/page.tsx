@@ -70,7 +70,7 @@ export default function Assignments() {
 
         {isFaculty && (
           <div>
-            <Button variant="secondary" className="me-2" id="wd-add-assignment-group">
+            <Button variant="light" className="me-2" id="wd-add-assignment-group">
               <BsPlus className="fs-4" /> Group
             </Button>
             <Button 

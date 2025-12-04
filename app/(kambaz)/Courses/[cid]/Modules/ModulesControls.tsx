@@ -38,7 +38,7 @@ export default function ModulesControls({
 
       <Dropdown className="float-end me-2">
         <Dropdown.Toggle
-          variant="secondary"
+          variant="light"
           size="lg"
           id="wd-publish-all-btn"
         >
@@ -62,7 +62,7 @@ export default function ModulesControls({
       </Dropdown>
 
       <Button
-        variant="secondary"
+        variant="light"
         size="lg"
         className="me-2 float-end border border-dark"
         id="wd-view-progress"
@@ -71,7 +71,7 @@ export default function ModulesControls({
       </Button>
 
       <Button
-        variant="secondary"
+        variant="light"
         size="lg"
         className="me-2 float-end border border-dark"
         id="wd-collapse-all"

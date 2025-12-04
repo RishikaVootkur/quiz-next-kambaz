@@ -50,7 +50,7 @@ export default function QuizDetails() {
         <div className="d-flex gap-2">
           {isFaculty && (
             <>
-              <Button variant="secondary" onClick={handlePreview}>
+              <Button variant="light" onClick={handlePreview}>
                 Preview
               </Button>
               <Button variant="danger" onClick={handleEdit}>

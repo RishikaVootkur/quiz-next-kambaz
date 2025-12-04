@@ -150,7 +150,7 @@ export default function TakeQuiz() {
           ))}
 
           <div className="d-flex gap-2">
-            <Button variant="secondary" onClick={() => router.push(`/Courses/${cid}/Quizzes`)}>
+            <Button variant="light" onClick={() => router.push(`/Courses/${cid}/Quizzes`)}>
               Cancel
             </Button>
             <Button variant="danger" onClick={handleSubmit}>

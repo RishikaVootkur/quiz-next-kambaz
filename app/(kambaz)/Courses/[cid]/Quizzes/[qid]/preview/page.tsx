@@ -153,7 +153,7 @@ export default function QuizPreview() {
           ))}
 
           <div className="d-flex gap-2">
-            <Button variant="secondary" onClick={() => router.back()}>
+            <Button variant="light" onClick={() => router.back()}>
               Cancel
             </Button>
             <Button variant="danger" onClick={handleSubmit}>

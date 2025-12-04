@@ -48,7 +48,7 @@ export default function PeopleTable({ users = [], fetchUsers }: { users?: any[];
                    setShowDetails(true);
                    setShowUserId(user._id);
                  }} >
-                  <FaUserCircle className="me-2 fs-1 text-secondary" />
+                  <FaUserCircle className="me-2 fs-1 text-light" />
                   <span className="wd-first-name">{user.firstName}</span>{" "}
                   <span className="wd-last-name">{user.lastName}</span>
                   </span>

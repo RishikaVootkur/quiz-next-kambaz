@@ -275,7 +275,7 @@ export default function AssignmentEditor() {
           {isFaculty && (
             <div className="d-flex justify-content-end mt-3 mb-4">
               <Button 
-                variant="secondary" 
+                variant="light" 
                 className="me-2"
                 onClick={handleCancel}
               >

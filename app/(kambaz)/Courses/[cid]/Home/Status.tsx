@@ -10,7 +10,7 @@ export default function CourseStatus() {
       <h2>Course Status</h2>
       <div className="d-flex">
         <div className="w-50 pe-1">
-          <Button variant="secondary" size="lg" className="w-100 text-nowrap">
+          <Button variant="light" size="lg" className="w-100 text-nowrap">
             <MdDoNotDisturbAlt className="me-2 fs-5" /> Unpublish
           </Button>
         </div>
@@ -21,25 +21,25 @@ export default function CourseStatus() {
         </div>
       </div>
       <br />
-      <Button variant="secondary" size="lg" className="w-100 mt-1 text-start">
+      <Button variant="light" size="lg" className="w-100 mt-1 text-start">
         <BiImport className="me-2 fs-5" /> Import Existing Content
       </Button>
-      <Button variant="secondary" size="lg" className="w-100 mt-1 text-start">
+      <Button variant="light" size="lg" className="w-100 mt-1 text-start">
         <LiaFileImportSolid className="me-2 fs-5" /> Import from Commons
       </Button>
-      <Button variant="secondary" size="lg" className="w-100 mt-1 text-start">
+      <Button variant="light" size="lg" className="w-100 mt-1 text-start">
         Choose Home Page
       </Button>
-      <Button variant="secondary" size="lg" className="w-100 mt-1 text-start">
+      <Button variant="light" size="lg" className="w-100 mt-1 text-start">
         View Course Stream
       </Button>
-      <Button variant="secondary" size="lg" className="w-100 mt-1 text-start">
+      <Button variant="light" size="lg" className="w-100 mt-1 text-start">
         New Announcement
       </Button>
-      <Button variant="secondary" size="lg" className="w-100 mt-1 text-start">
+      <Button variant="light" size="lg" className="w-100 mt-1 text-start">
         New Analytics
       </Button>
-      <Button variant="secondary" size="lg" className="w-100 mt-1 text-start">
+      <Button variant="light" size="lg" className="w-100 mt-1 text-start">
         View Course Statistics
       </Button>
     </div>

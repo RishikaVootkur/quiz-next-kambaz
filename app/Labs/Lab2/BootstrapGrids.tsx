@@ -30,7 +30,7 @@ export default function BootstrapGrids() {
           <Col xs={2} className="bg-dark text-white">
             <h3>Sidebar</h3>
           </Col>
-          <Col xs={8} className="bg-secondary text-white">
+          <Col xs={8} className="bg-light text-white">
             <h3>Main content</h3>
           </Col>
           <Col xs={2} className="bg-info">

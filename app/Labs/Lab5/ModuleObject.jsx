@@ -33,7 +33,7 @@ export default function WorkingWithObjects() {
 
       <a
         id="wd-get-module"
-        className="btn btn-secondary me-2"
+        className="btn btn-light me-2"
         href={`${HTTP_SERVER}/lab5/module`}
       >
         Get Module
@@ -41,7 +41,7 @@ export default function WorkingWithObjects() {
 
       <a
         id="wd-get-module-name"
-        className="btn btn-outline-secondary me-2"
+        className="btn btn-outline-light me-2"
         href={`${HTTP_SERVER}/lab5/module/name`}
       >
         Get Module Name

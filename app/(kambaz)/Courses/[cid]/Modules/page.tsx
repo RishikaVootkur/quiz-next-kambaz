@@ -76,7 +76,7 @@ export default function Modules() {
             key={module._id}
             className="wd-module p-0 mb-5 fs-5 border-gray"
           >
-            <div className="wd-title p-3 ps-2 bg-secondary">
+            <div className="wd-title p-3 ps-2 bg-light">
               <BsGripVertical className="me-2 fs-3" />
               {/* Display module name when not editing */}
               {(!module.editing || !isFaculty) && module.name}
