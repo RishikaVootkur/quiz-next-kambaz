@@ -2,7 +2,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Button, Form, Nav, Tab } from "react-bootstrap";
+import { Button, Form, Nav, Tab, Badge, Dropdown, Modal } from "react-bootstrap";
+import { BsThreeDotsVertical, BsCalendar3, BsTypeBold, BsTypeItalic, BsTypeUnderline } from "react-icons/bs";
+import { FaBan } from "react-icons/fa";
 import * as client from "../../client";
 
 export default function QuizEditor() {
@@ -13,12 +15,19 @@ export default function QuizEditor() {
   
   const [quiz, setQuiz] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("details");
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [assignees, setAssignees] = useState<string[]>(["Everyone"]);
+  const [fontSize, setFontSize] = useState("12pt");
+  const [textFormat, setTextFormat] = useState("Paragraph");
 
   useEffect(() => {
     const fetchQuiz = async () => {
       try {
         const quizData = await client.findQuizById(qid);
         setQuiz(quizData);
+        if (quizData.assignTo && quizData.assignTo.length > 0) {
+          setAssignees(quizData.assignTo);
+        }
       } catch (error) {
         console.error("Error fetching quiz:", error);
       }
@@ -28,8 +37,9 @@ export default function QuizEditor() {
 
   const handleSave = async () => {
     try {
-      await client.updateQuiz(quiz);
-      router.push(`/Courses/${cid}/Quizzes/${qid}`); // FIXED
+      const updatedQuiz = { ...quiz, assignTo: assignees };
+      await client.updateQuiz(updatedQuiz);
+      router.push(`/Courses/${cid}/Quizzes/${qid}`);
     } catch (error) {
       console.error("Error saving quiz:", error);
     }
@@ -37,164 +47,567 @@ export default function QuizEditor() {
 
   const handleSaveAndPublish = async () => {
     try {
-      await client.updateQuiz({ ...quiz, published: true });
+      const updatedQuiz = { ...quiz, published: true, assignTo: assignees };
+      await client.updateQuiz(updatedQuiz);
       await client.publishQuiz(qid);
-      router.push(`/Courses/${cid}/Quizzes`); // FIXED
+      router.push(`/Courses/${cid}/Quizzes`);
     } catch (error) {
       console.error("Error saving and publishing quiz:", error);
     }
   };
 
   const handleCancel = () => {
-    router.push(`/Courses/${cid}/Quizzes`); // FIXED
+    router.push(`/Courses/${cid}/Quizzes`);
   };
 
-  if (!quiz) return <div>Loading...</div>;
+  const handleRemoveAssignee = (assignee: string) => {
+    if (assignees.length > 1) {
+      setAssignees(assignees.filter(a => a !== assignee));
+    }
+  };
+
+  const handleAddAssignee = (assignee: string) => {
+    if (!assignees.includes(assignee)) {
+      setAssignees([...assignees, assignee]);
+    }
+    setShowAssignModal(false);
+  };
+
+  const handleDuplicate = async () => {
+    try {
+      const duplicatedQuiz = {
+        ...quiz,
+        title: `${quiz.title} (Copy)`,
+        published: false,
+      };
+      delete duplicatedQuiz._id;
+      const newQuiz = await client.createQuizForCourse(cid, duplicatedQuiz);
+      router.push(`/Courses/${cid}/Quizzes/${newQuiz._id}/edit`);
+    } catch (error) {
+      console.error("Error duplicating quiz:", error);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (window.confirm("Are you sure you want to delete this quiz?")) {
+      try {
+        await client.deleteQuiz(qid);
+        router.push(`/Courses/${cid}/Quizzes`);
+      } catch (error) {
+        console.error("Error deleting quiz:", error);
+      }
+    }
+  };
+
+  const wordCount = (quiz?.description || "").split(/\s+/).filter(Boolean).length;
+
+  if (!quiz) return <div className="p-4">Loading...</div>;
+
+  const totalPoints = quiz.questions?.reduce((sum: number, q: any) => sum + (q.points || 0), 0) || 0;
 
   return (
-    <div id="wd-quiz-editor" className="p-4">
-      <Tab.Container activeKey={activeTab} onSelect={(k) => setActiveTab(k || "details")}>
-        <Nav variant="tabs" className="mb-4">
-          <Nav.Item>
-            <Nav.Link eventKey="details">Details</Nav.Link>
-          </Nav.Item>
-          <Nav.Item>
-            <Nav.Link eventKey="questions">Questions</Nav.Link>
-          </Nav.Item>
-        </Nav>
+    <div id="wd-quiz-editor">
+      {/* Header with Points and Status */}
+      <div className="d-flex justify-content-end align-items-center mb-3 pe-4 gap-3 pt-3">
+        <span>Points {totalPoints}</span>
+        {!quiz.published && (
+          <Badge bg="light" text="dark" className="px-3 py-2 border">
+            <FaBan className="me-2" />
+            Not Published
+          </Badge>
+        )}
+        
+        {/* Three Dots Menu */}
+        <Dropdown>
+          <Dropdown.Toggle 
+            variant="link" 
+            className="text-dark p-0"
+            style={{ boxShadow: 'none', textDecoration: 'none' }}
+          >
+            <BsThreeDotsVertical className="fs-5" />
+          </Dropdown.Toggle>
+          <Dropdown.Menu align="end">
+            <Dropdown.Item onClick={() => router.push(`/Courses/${cid}/Quizzes/${qid}`)}>
+              Show Rubric
+            </Dropdown.Item>
+            <Dropdown.Item onClick={() => router.push(`/Courses/${cid}/Quizzes/${qid}/preview`)}>
+              Preview
+            </Dropdown.Item>
+            <Dropdown.Item onClick={handleDuplicate}>
+              Duplicate
+            </Dropdown.Item>
+            <Dropdown.Divider />
+            <Dropdown.Item onClick={handleDelete} className="text-danger">
+              Delete
+            </Dropdown.Item>
+          </Dropdown.Menu>
+        </Dropdown>
+      </div>
 
-        <Tab.Content>
-          <Tab.Pane eventKey="details">
-            <Form>
-              <Form.Group className="mb-3">
-                <Form.Label>Title</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={quiz.title}
-                  onChange={(e) => setQuiz({ ...quiz, title: e.target.value })}
-                />
-              </Form.Group>
+      <div className="px-4">
+        <Tab.Container activeKey={activeTab} onSelect={(k) => setActiveTab(k || "details")}>
+          <Nav variant="tabs" className="mb-4">
+            <Nav.Item>
+              <Nav.Link eventKey="details" className="text-dark">
+                Details
+              </Nav.Link>
+            </Nav.Item>
+            <Nav.Item>
+              <Nav.Link eventKey="questions" className="text-danger">
+                Questions
+              </Nav.Link>
+            </Nav.Item>
+          </Nav>
 
-              <Form.Group className="mb-3">
-                <Form.Label>Description</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={3}
-                  value={quiz.description || ""}
-                  onChange={(e) => setQuiz({ ...quiz, description: e.target.value })}
-                />
-              </Form.Group>
-
-              <Form.Group className="mb-3">
-                <Form.Label>Quiz Type</Form.Label>
-                <Form.Select
-                  value={quiz.quizType}
-                  onChange={(e) => setQuiz({ ...quiz, quizType: e.target.value })}
-                >
-                  <option value="GRADED_QUIZ">Graded Quiz</option>
-                  <option value="PRACTICE_QUIZ">Practice Quiz</option>
-                  <option value="GRADED_SURVEY">Graded Survey</option>
-                  <option value="UNGRADED_SURVEY">Ungraded Survey</option>
-                </Form.Select>
-              </Form.Group>
-
-              <Form.Group className="mb-3">
-                <Form.Label>Assignment Group</Form.Label>
-                <Form.Select
-                  value={quiz.assignmentGroup}
-                  onChange={(e) => setQuiz({ ...quiz, assignmentGroup: e.target.value })}
-                >
-                  <option value="QUIZZES">Quizzes</option>
-                  <option value="EXAMS">Exams</option>
-                  <option value="ASSIGNMENTS">Assignments</option>
-                  <option value="PROJECT">Project</option>
-                </Form.Select>
-              </Form.Group>
-
-              <Form.Group className="mb-3">
-                <Form.Label>Time Limit (minutes)</Form.Label>
-                <Form.Control
-                  type="number"
-                  value={quiz.timeLimit}
-                  onChange={(e) => setQuiz({ ...quiz, timeLimit: parseInt(e.target.value) })}
-                />
-              </Form.Group>
-
-              <Form.Group className="mb-3">
-                <Form.Check
-                  type="checkbox"
-                  label="Shuffle Answers"
-                  checked={quiz.shuffleAnswers}
-                  onChange={(e) => setQuiz({ ...quiz, shuffleAnswers: e.target.checked })}
-                />
-              </Form.Group>
-
-              <Form.Group className="mb-3">
-                <Form.Check
-                  type="checkbox"
-                  label="Multiple Attempts"
-                  checked={quiz.multipleAttempts}
-                  onChange={(e) => setQuiz({ ...quiz, multipleAttempts: e.target.checked })}
-                />
-              </Form.Group>
-
-              {quiz.multipleAttempts && (
+          <Tab.Content>
+            <Tab.Pane eventKey="details">
+              <Form>
+                {/* Title Input */}
                 <Form.Group className="mb-3">
-                  <Form.Label>How Many Attempts</Form.Label>
                   <Form.Control
-                    type="number"
-                    value={quiz.howManyAttempts}
-                    onChange={(e) => setQuiz({ ...quiz, howManyAttempts: parseInt(e.target.value) })}
+                    type="text"
+                    value={quiz.title}
+                    onChange={(e) => setQuiz({ ...quiz, title: e.target.value })}
+                    placeholder="Unnamed Quiz"
+                    className="border-secondary"
                   />
                 </Form.Group>
-              )}
 
-              <Form.Group className="mb-3">
-                <Form.Label>Due Date</Form.Label>
-                <Form.Control
-                  type="datetime-local"
-                  value={quiz.dueDate ? new Date(quiz.dueDate).toISOString().slice(0, 16) : ""}
-                  onChange={(e) => setQuiz({ ...quiz, dueDate: e.target.value })}
-                />
-              </Form.Group>
+                {/* Quiz Instructions with Working Rich Text Editor */}
+                <Form.Group className="mb-4">
+                  <Form.Label className="fw-normal">Quiz Instructions:</Form.Label>
+                  
+                  {/* Menu bar */}
+                  <div className="border border-bottom-0 p-2 bg-light d-flex align-items-center gap-3">
+                    <Dropdown>
+                      <Dropdown.Toggle variant="link" size="sm" className="text-muted text-decoration-none p-0">
+                        Edit
+                      </Dropdown.Toggle>
+                      <Dropdown.Menu>
+                        <Dropdown.Item>Undo</Dropdown.Item>
+                        <Dropdown.Item>Redo</Dropdown.Item>
+                      </Dropdown.Menu>
+                    </Dropdown>
+                    
+                    <Dropdown>
+                      <Dropdown.Toggle variant="link" size="sm" className="text-muted text-decoration-none p-0">
+                        View
+                      </Dropdown.Toggle>
+                      <Dropdown.Menu>
+                        <Dropdown.Item>Fullscreen</Dropdown.Item>
+                      </Dropdown.Menu>
+                    </Dropdown>
+                    
+                    <Dropdown>
+                      <Dropdown.Toggle variant="link" size="sm" className="text-muted text-decoration-none p-0">
+                        Insert
+                      </Dropdown.Toggle>
+                      <Dropdown.Menu>
+                        <Dropdown.Item>Image</Dropdown.Item>
+                        <Dropdown.Item>Link</Dropdown.Item>
+                        <Dropdown.Item>Table</Dropdown.Item>
+                      </Dropdown.Menu>
+                    </Dropdown>
+                    
+                    <Dropdown>
+                      <Dropdown.Toggle variant="link" size="sm" className="text-muted text-decoration-none p-0">
+                        Format
+                      </Dropdown.Toggle>
+                      <Dropdown.Menu>
+                        <Dropdown.Item>Bold</Dropdown.Item>
+                        <Dropdown.Item>Italic</Dropdown.Item>
+                        <Dropdown.Item>Underline</Dropdown.Item>
+                      </Dropdown.Menu>
+                    </Dropdown>
+                    
+                    <Dropdown>
+                      <Dropdown.Toggle variant="link" size="sm" className="text-muted text-decoration-none p-0">
+                        Tools
+                      </Dropdown.Toggle>
+                      <Dropdown.Menu>
+                        <Dropdown.Item>Spell Check</Dropdown.Item>
+                        <Dropdown.Item>Word Count</Dropdown.Item>
+                      </Dropdown.Menu>
+                    </Dropdown>
+                    
+                    <Dropdown>
+                      <Dropdown.Toggle variant="link" size="sm" className="text-muted text-decoration-none p-0">
+                        Table
+                      </Dropdown.Toggle>
+                      <Dropdown.Menu>
+                        <Dropdown.Item>Insert Table</Dropdown.Item>
+                        <Dropdown.Item>Delete Table</Dropdown.Item>
+                      </Dropdown.Menu>
+                    </Dropdown>
+                    
+                    <div className="ms-auto">
+                      <span className="text-success fw-bold">100%</span>
+                    </div>
+                  </div>
 
-              <Form.Group className="mb-3">
-                <Form.Label>Available From</Form.Label>
-                <Form.Control
-                  type="datetime-local"
-                  value={quiz.availableDate ? new Date(quiz.availableDate).toISOString().slice(0, 16) : ""}
-                  onChange={(e) => setQuiz({ ...quiz, availableDate: e.target.value })}
-                />
-              </Form.Group>
+                  {/* Formatting toolbar with working dropdowns */}
+                  <div className="border border-top-0 border-bottom-0 p-2 bg-white d-flex align-items-center gap-2">
+                    <Form.Select 
+                      size="sm" 
+                      value={fontSize}
+                      onChange={(e) => setFontSize(e.target.value)}
+                      style={{ width: '80px' }}
+                    >
+                      <option value="8pt">8pt</option>
+                      <option value="10pt">10pt</option>
+                      <option value="12pt">12pt</option>
+                      <option value="14pt">14pt</option>
+                      <option value="16pt">16pt</option>
+                      <option value="18pt">18pt</option>
+                      <option value="24pt">24pt</option>
+                      <option value="36pt">36pt</option>
+                    </Form.Select>
+                    
+                    <Form.Select 
+                      size="sm"
+                      value={textFormat}
+                      onChange={(e) => setTextFormat(e.target.value)}
+                      style={{ width: '140px' }}
+                    >
+                      <option value="Paragraph">Paragraph</option>
+                      <option value="Heading 1">Heading 1</option>
+                      <option value="Heading 2">Heading 2</option>
+                      <option value="Heading 3">Heading 3</option>
+                      <option value="Heading 4">Heading 4</option>
+                      <option value="Preformatted">Preformatted</option>
+                    </Form.Select>
+                    
+                    <div className="vr"></div>
+                    
+                    <Button variant="light" size="sm" className="border-0 p-1 px-2" title="Bold">
+                      <BsTypeBold className="fs-6" />
+                    </Button>
+                    <Button variant="light" size="sm" className="border-0 p-1 px-2" title="Italic">
+                      <BsTypeItalic className="fs-6" />
+                    </Button>
+                    <Button variant="light" size="sm" className="border-0 p-1 px-2" title="Underline">
+                      <BsTypeUnderline className="fs-6" />
+                    </Button>
+                    
+                    <div className="vr"></div>
+                    
+                    <Dropdown>
+                      <Dropdown.Toggle variant="light" size="sm" className="border-0">
+                        A
+                      </Dropdown.Toggle>
+                      <Dropdown.Menu>
+                        <Dropdown.Item>Text Color</Dropdown.Item>
+                        <Dropdown.Item>Background Color</Dropdown.Item>
+                      </Dropdown.Menu>
+                    </Dropdown>
+                    
+                    <Button variant="light" size="sm" className="border-0 p-1 px-2">
+                      ✏️
+                    </Button>
+                    
+                    <Dropdown>
+                      <Dropdown.Toggle variant="light" size="sm" className="border-0">
+                        T²
+                      </Dropdown.Toggle>
+                      <Dropdown.Menu>
+                        <Dropdown.Item>Superscript</Dropdown.Item>
+                        <Dropdown.Item>Subscript</Dropdown.Item>
+                      </Dropdown.Menu>
+                    </Dropdown>
+                    
+                    <div className="vr"></div>
+                    
+                    <Dropdown>
+                      <Dropdown.Toggle variant="light" size="sm" className="border-0">
+                        ⋮
+                      </Dropdown.Toggle>
+                      <Dropdown.Menu>
+                        <Dropdown.Item>More Options</Dropdown.Item>
+                      </Dropdown.Menu>
+                    </Dropdown>
+                  </div>
 
-              <Form.Group className="mb-3">
-                <Form.Label>Until</Form.Label>
-                <Form.Control
-                  type="datetime-local"
-                  value={quiz.untilDate ? new Date(quiz.untilDate).toISOString().slice(0, 16) : ""}
-                  onChange={(e) => setQuiz({ ...quiz, untilDate: e.target.value })}
-                />
-              </Form.Group>
+                  {/* Text area */}
+                  <Form.Control
+                    as="textarea"
+                    rows={6}
+                    value={quiz.description || ""}
+                    onChange={(e) => setQuiz({ ...quiz, description: e.target.value })}
+                    className="border-top-0 rounded-0"
+                    placeholder="Enter quiz instructions..."
+                    style={{ fontSize: fontSize, fontFamily: 'Arial, sans-serif' }}
+                  />
+                  
+                  {/* Bottom toolbar */}
+                  <div className="border border-top-0 p-2 bg-white d-flex justify-content-end align-items-center rounded-bottom gap-3">
+                    <span className="text-danger small">{wordCount} words</span>
+                    <span className="text-muted small">&lt;/&gt;</span>
+                    <Button variant="link" size="sm" className="text-danger p-0 text-decoration-none">
+                      ✏️
+                    </Button>
+                    <BsThreeDotsVertical className="text-muted" style={{ cursor: 'pointer' }} />
+                  </div>
+                </Form.Group>
 
-              <div className="d-flex gap-2 justify-content-end">
-                <Button variant="light" onClick={handleCancel}>
-                  Cancel
-                </Button>
-                <Button variant="primary" onClick={handleSave}>
-                  Save
-                </Button>
-                <Button variant="danger" onClick={handleSaveAndPublish}>
-                  Save & Publish
-                </Button>
-              </div>
-            </Form>
-          </Tab.Pane>
+                {/* Quiz Type */}
+                <Form.Group className="mb-3 row">
+                  <div className="col-sm-2"></div>
+                  <Form.Label className="col-sm-2 col-form-label text-end">Quiz Type</Form.Label>
+                  <div className="col-sm-8">
+                    <Form.Select
+                      value={quiz.quizType}
+                      onChange={(e) => setQuiz({ ...quiz, quizType: e.target.value })}
+                    >
+                      <option value="GRADED_QUIZ">Graded Quiz</option>
+                      <option value="PRACTICE_QUIZ">Practice Quiz</option>
+                      <option value="GRADED_SURVEY">Graded Survey</option>
+                      <option value="UNGRADED_SURVEY">Ungraded Survey</option>
+                    </Form.Select>
+                  </div>
+                </Form.Group>
 
-          <Tab.Pane eventKey="questions">
-            <QuestionsEditor quiz={quiz} setQuiz={setQuiz} />
-          </Tab.Pane>
-        </Tab.Content>
-      </Tab.Container>
+                {/* Assignment Group */}
+                <Form.Group className="mb-3 row">
+                  <div className="col-sm-2"></div>
+                  <Form.Label className="col-sm-2 col-form-label text-end">Assignment Group</Form.Label>
+                  <div className="col-sm-8">
+                    <Form.Select
+                      value={quiz.assignmentGroup}
+                      onChange={(e) => setQuiz({ ...quiz, assignmentGroup: e.target.value })}
+                    >
+                      <option value="QUIZZES">Quizzes</option>
+                      <option value="EXAMS">Exams</option>
+                      <option value="ASSIGNMENTS">ASSIGNMENTS</option>
+                      <option value="PROJECT">Project</option>
+                    </Form.Select>
+                  </div>
+                </Form.Group>
+
+                {/* Options Section */}
+                <div className="row mb-4">
+                  <div className="col-sm-2"></div>
+                  <div className="col-sm-2"></div>
+                  <div className="col-sm-8">
+                    <h6 className="mb-3">Options</h6>
+                    
+                    <Form.Check
+                      type="checkbox"
+                      label="Shuffle Answers"
+                      checked={quiz.shuffleAnswers}
+                      onChange={(e) => setQuiz({ ...quiz, shuffleAnswers: e.target.checked })}
+                      className="mb-3"
+                    />
+
+                    <div className="mb-3">
+                      <Form.Check
+                        type="checkbox"
+                        label="Time Limit"
+                        checked={!!quiz.timeLimit}
+                        onChange={(e) => setQuiz({ ...quiz, timeLimit: e.target.checked ? 20 : 0 })}
+                        inline
+                      />
+                      {quiz.timeLimit > 0 && (
+                        <span className="ms-3">
+                          <Form.Control
+                            type="number"
+                            value={quiz.timeLimit}
+                            onChange={(e) => setQuiz({ ...quiz, timeLimit: parseInt(e.target.value) || 0 })}
+                            className="d-inline-block"
+                            style={{ width: '80px' }}
+                          />
+                          <span className="ms-2">Minutes</span>
+                        </span>
+                      )}
+                    </div>
+
+                    <Form.Check
+                      type="checkbox"
+                      label="Allow Multiple Attempts"
+                      checked={quiz.multipleAttempts}
+                      onChange={(e) => setQuiz({ ...quiz, multipleAttempts: e.target.checked })}
+                      className="mb-3"
+                    />
+
+                    {quiz.multipleAttempts && (
+                      <Form.Group className="mb-3 ms-4">
+                        <Form.Label>How Many Attempts</Form.Label>
+                        <Form.Control
+                          type="number"
+                          value={quiz.howManyAttempts || 1}
+                          onChange={(e) => setQuiz({ ...quiz, howManyAttempts: parseInt(e.target.value) || 1 })}
+                          style={{ width: '100px' }}
+                        />
+                      </Form.Group>
+                    )}
+                  </div>
+                </div>
+
+                {/* Assign Section */}
+                <div className="row mb-4">
+                  <div className="col-sm-2"></div>
+                  <Form.Label className="col-sm-2 col-form-label text-end align-self-start">Assign</Form.Label>
+                  <div className="col-sm-8">
+                    <div className="border rounded p-4 bg-white">
+                      <Form.Group className="mb-4">
+                        <Form.Label className="fw-bold">Assign to</Form.Label>
+                        <div className="border rounded p-3 bg-white" style={{ minHeight: '60px' }}>
+                          {assignees.map((assignee, index) => (
+                            <Badge 
+                              key={index}
+                              bg="light" 
+                              text="dark" 
+                              className="px-3 py-2 border me-2 mb-2"
+                              style={{ fontSize: '0.95rem' }}
+                            >
+                              {assignee}
+                              {assignees.length > 1 && (
+                                <button 
+                                  className="btn-close btn-close-sm ms-3" 
+                                  aria-label="Remove"
+                                  style={{ fontSize: '0.6rem' }}
+                                  onClick={() => handleRemoveAssignee(assignee)}
+                                ></button>
+                              )}
+                            </Badge>
+                          ))}
+                        </div>
+                      </Form.Group>
+
+                      <Form.Group className="mb-4">
+                        <Form.Label className="fw-bold">Due</Form.Label>
+                        <div className="input-group">
+                          <Form.Control
+                            type="datetime-local"
+                            value={quiz.dueDate ? new Date(quiz.dueDate).toISOString().slice(0, 16) : ""}
+                            onChange={(e) => setQuiz({ ...quiz, dueDate: e.target.value })}
+                          />
+                          <span className="input-group-text bg-white border-start-0">
+                            <BsCalendar3 />
+                          </span>
+                        </div>
+                      </Form.Group>
+
+                      <div className="row">
+                        <div className="col-md-6">
+                          <Form.Group className="mb-0">
+                            <Form.Label className="fw-bold">Available from</Form.Label>
+                            <div className="input-group">
+                              <Form.Control
+                                type="datetime-local"
+                                value={quiz.availableDate ? new Date(quiz.availableDate).toISOString().slice(0, 16) : ""}
+                                onChange={(e) => setQuiz({ ...quiz, availableDate: e.target.value })}
+                              />
+                              <span className="input-group-text bg-white border-start-0">
+                                <BsCalendar3 />
+                              </span>
+                            </div>
+                          </Form.Group>
+                        </div>
+                        <div className="col-md-6">
+                          <Form.Group className="mb-0">
+                            <Form.Label className="fw-bold">Until</Form.Label>
+                            <div className="input-group">
+                              <Form.Control
+                                type="datetime-local"
+                                value={quiz.untilDate ? new Date(quiz.untilDate).toISOString().slice(0, 16) : ""}
+                                onChange={(e) => setQuiz({ ...quiz, untilDate: e.target.value })}
+                              />
+                              <span className="input-group-text bg-white border-start-0">
+                                <BsCalendar3 />
+                              </span>
+                            </div>
+                          </Form.Group>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 text-center border-top pt-3" style={{ borderStyle: 'dashed' }}>
+                      <Button 
+                        variant="link" 
+                        className="text-muted text-decoration-none"
+                        onClick={() => setShowAssignModal(true)}
+                      >
+                        + Add
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <hr className="my-4" />
+                
+                {/* Action Buttons */}
+                <div className="d-flex gap-2 justify-content-end pb-4">
+                  <Button 
+                    variant="light" 
+                    onClick={handleCancel}
+                    className="border px-4"
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    variant="danger" 
+                    onClick={handleSave}
+                    className="px-4"
+                  >
+                    Save
+                  </Button>
+                  <Button 
+                    variant="danger" 
+                    onClick={handleSaveAndPublish}
+                    className="px-4"
+                  >
+                    Save & Publish
+                  </Button>
+                </div>
+              </Form>
+            </Tab.Pane>
+
+            <Tab.Pane eventKey="questions">
+              <QuestionsEditor quiz={quiz} setQuiz={setQuiz} />
+            </Tab.Pane>
+          </Tab.Content>
+        </Tab.Container>
+      </div>
+
+      {/* Add Assignee Modal */}
+      <Modal show={showAssignModal} onHide={() => setShowAssignModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Add Assignees</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <div className="list-group list-group-flush">
+            <button 
+              className="list-group-item list-group-item-action"
+              onClick={() => handleAddAssignee("Everyone")}
+            >
+              Everyone
+            </button>
+            <button 
+              className="list-group-item list-group-item-action"
+              onClick={() => handleAddAssignee("Students")}
+            >
+              Students
+            </button>
+            <button 
+              className="list-group-item list-group-item-action"
+              onClick={() => handleAddAssignee("TAs")}
+            >
+              TAs
+            </button>
+            <button 
+              className="list-group-item list-group-item-action"
+              onClick={() => handleAddAssignee("Faculty")}
+            >
+              Faculty
+            </button>
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowAssignModal(false)}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 }
@@ -268,7 +681,7 @@ function QuestionsEditor({ quiz, setQuiz }: { quiz: any; setQuiz: (quiz: any) =>
   return (
     <div>
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h4>Points: {totalPoints}</h4>
+        <h5>Total Points: {totalPoints}</h5>
         <div className="d-flex gap-2 align-items-center">
           <Form.Select
             value={questionType}
@@ -285,14 +698,14 @@ function QuestionsEditor({ quiz, setQuiz }: { quiz: any; setQuiz: (quiz: any) =>
         </div>
       </div>
 
-      {quiz.questions?.length === 0 ? (
+      {!quiz.questions || quiz.questions.length === 0 ? (
         <div className="text-center p-5 border rounded">
           <p className="text-muted">No questions yet. Click &quot;+ New Question&quot; to add one.</p>
         </div>
       ) : (
         <div className="list-group">
-          {quiz.questions?.map((question: any, index: number) => (
-            <div key={question._id} className="list-group-item">
+          {quiz.questions.map((question: any, index: number) => (
+            <div key={question._id} className="list-group-item mb-3 border rounded">
               {editingQuestion?._id === question._id ? (
                 <QuestionEditor
                   question={editingQuestion}
@@ -301,16 +714,29 @@ function QuestionsEditor({ quiz, setQuiz }: { quiz: any; setQuiz: (quiz: any) =>
                   onChange={setEditingQuestion}
                 />
               ) : (
-                <div>
+                <div className="p-3">
                   <div className="d-flex justify-content-between">
-                    <div>
-                      <strong>Question {index + 1}</strong> ({question.type}) - {question.points} pts
-                      <div className="mt-2">{question.question}</div>
+                    <div className="flex-grow-1">
+                      <div className="fw-bold mb-2">
+                        Question {index + 1} <span className="text-muted fw-normal">({question.type})</span> - {question.points} pts
+                      </div>
+                      <div className="text-muted">{question.question}</div>
+                      
+                      {question.type === "MULTIPLE_CHOICE" && question.choices && (
+                        <div className="mt-2">
+                          {question.choices.map((choice: any, idx: number) => (
+                            <div key={idx} className="small text-muted">
+                              {choice.isCorrect && "✓ "}{choice.text}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <div className="d-flex gap-2">
                       <Button
                         variant="link"
                         size="sm"
+                        className="text-decoration-none"
                         onClick={() => setEditingQuestion(question)}
                       >
                         Edit
@@ -318,7 +744,7 @@ function QuestionsEditor({ quiz, setQuiz }: { quiz: any; setQuiz: (quiz: any) =>
                       <Button
                         variant="link"
                         size="sm"
-                        className="text-danger"
+                        className="text-danger text-decoration-none"
                         onClick={() => handleDeleteQuestion(question._id)}
                       >
                         Delete
@@ -350,7 +776,7 @@ function QuestionEditor({
   const handleAddChoice = () => {
     onChange({
       ...question,
-      choices: [...question.choices, { text: "", isCorrect: false }],
+      choices: [...(question.choices || []), { text: "", isCorrect: false }],
     });
   };
 
@@ -376,7 +802,7 @@ function QuestionEditor({
   const handleAddPossibleAnswer = () => {
     onChange({
       ...question,
-      possibleAnswers: [...question.possibleAnswers, ""],
+      possibleAnswers: [...(question.possibleAnswers || []), ""],
     });
   };
 
@@ -392,10 +818,10 @@ function QuestionEditor({
   };
 
   return (
-    <div className="p-3 border rounded">
+    <div className="p-4 bg-light">
       <Form>
         <Form.Group className="mb-3">
-          <Form.Label>Title</Form.Label>
+          <Form.Label className="fw-bold">Title</Form.Label>
           <Form.Control
             type="text"
             value={question.title}
@@ -404,16 +830,17 @@ function QuestionEditor({
         </Form.Group>
 
         <Form.Group className="mb-3">
-          <Form.Label>Points</Form.Label>
+          <Form.Label className="fw-bold">Points</Form.Label>
           <Form.Control
             type="number"
             value={question.points}
-            onChange={(e) => onChange({ ...question, points: parseInt(e.target.value) })}
+            onChange={(e) => onChange({ ...question, points: parseInt(e.target.value) || 0 })}
+            style={{ maxWidth: '100px' }}
           />
         </Form.Group>
 
         <Form.Group className="mb-3">
-          <Form.Label>Question</Form.Label>
+          <Form.Label className="fw-bold">Question</Form.Label>
           <Form.Control
             as="textarea"
             rows={3}
@@ -424,14 +851,15 @@ function QuestionEditor({
 
         {question.type === "MULTIPLE_CHOICE" && (
           <div className="mb-3">
-            <Form.Label>Choices</Form.Label>
-            {question.choices.map((choice: any, index: number) => (
-              <div key={index} className="d-flex gap-2 mb-2">
+            <Form.Label className="fw-bold">Choices</Form.Label>
+            {question.choices?.map((choice: any, index: number) => (
+              <div key={index} className="d-flex gap-2 mb-2 align-items-center">
                 <Form.Check
                   type="radio"
-                  name="correctChoice"
+                  name={`correctChoice-${question._id}`}
                   checked={choice.isCorrect}
                   onChange={() => handleCorrectChoiceChange(index)}
+                  label=""
                 />
                 <Form.Control
                   type="text"
@@ -439,16 +867,18 @@ function QuestionEditor({
                   onChange={(e) => handleChoiceChange(index, e.target.value)}
                   placeholder={`Choice ${index + 1}`}
                 />
-                <Button
-                  variant="danger"
-                  size="sm"
-                  onClick={() => handleRemoveChoice(index)}
-                >
-                  Remove
-                </Button>
+                {question.choices.length > 2 && (
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => handleRemoveChoice(index)}
+                  >
+                    Remove
+                  </Button>
+                )}
               </div>
             ))}
-            <Button variant="light" size="sm" onClick={handleAddChoice}>
+            <Button variant="light" size="sm" onClick={handleAddChoice} className="border mt-2">
               + Add Choice
             </Button>
           </div>
@@ -456,28 +886,30 @@ function QuestionEditor({
 
         {question.type === "TRUE_FALSE" && (
           <Form.Group className="mb-3">
-            <Form.Label>Correct Answer</Form.Label>
-            <Form.Check
-              type="radio"
-              label="True"
-              name="trueFalse"
-              checked={question.correctAnswer === true}
-              onChange={() => onChange({ ...question, correctAnswer: true })}
-            />
-            <Form.Check
-              type="radio"
-              label="False"
-              name="trueFalse"
-              checked={question.correctAnswer === false}
-              onChange={() => onChange({ ...question, correctAnswer: false })}
-            />
+            <Form.Label className="fw-bold">Correct Answer</Form.Label>
+            <div>
+              <Form.Check
+                type="radio"
+                label="True"
+                name={`trueFalse-${question._id}`}
+                checked={question.correctAnswer === true}
+                onChange={() => onChange({ ...question, correctAnswer: true })}
+              />
+              <Form.Check
+                type="radio"
+                label="False"
+                name={`trueFalse-${question._id}`}
+                checked={question.correctAnswer === false}
+                onChange={() => onChange({ ...question, correctAnswer: false })}
+              />
+            </div>
           </Form.Group>
         )}
 
         {question.type === "FILL_BLANK" && (
           <div className="mb-3">
-            <Form.Label>Possible Answers</Form.Label>
-            {question.possibleAnswers.map((answer: string, index: number) => (
+            <Form.Label className="fw-bold">Possible Answers</Form.Label>
+            {question.possibleAnswers?.map((answer: string, index: number) => (
               <div key={index} className="d-flex gap-2 mb-2">
                 <Form.Control
                   type="text"
@@ -485,16 +917,18 @@ function QuestionEditor({
                   onChange={(e) => handlePossibleAnswerChange(index, e.target.value)}
                   placeholder={`Answer ${index + 1}`}
                 />
-                <Button
-                  variant="danger"
-                  size="sm"
-                  onClick={() => handleRemovePossibleAnswer(index)}
-                >
-                  Remove
-                </Button>
+                {question.possibleAnswers.length > 1 && (
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => handleRemovePossibleAnswer(index)}
+                  >
+                    Remove
+                  </Button>
+                )}
               </div>
             ))}
-            <Button variant="light" size="sm" onClick={handleAddPossibleAnswer}>
+            <Button variant="light" size="sm" onClick={handleAddPossibleAnswer} className="border mt-2">
               + Add Answer
             </Button>
             <Form.Check
@@ -502,16 +936,17 @@ function QuestionEditor({
               label="Case Sensitive"
               checked={question.caseSensitive}
               onChange={(e) => onChange({ ...question, caseSensitive: e.target.checked })}
-              className="mt-2"
+              className="mt-3"
             />
           </div>
         )}
 
+        <hr />
         <div className="d-flex gap-2 justify-content-end">
-          <Button variant="light" onClick={onCancel}>
+          <Button variant="light" className="border px-4" onClick={onCancel}>
             Cancel
           </Button>
-          <Button variant="danger" onClick={() => onSave(question)}>
+          <Button variant="danger" className="px-4" onClick={() => onSave(question)}>
             Update Question
           </Button>
         </div>

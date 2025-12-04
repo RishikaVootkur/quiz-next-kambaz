@@ -1,6 +1,6 @@
-
 'use client';
-import { usePathname } from 'next/navigation';
+import { usePathname, useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { FaAlignJustify } from 'react-icons/fa';
 
 export default function Breadcrumb({
@@ -11,7 +11,45 @@ export default function Breadcrumb({
   onToggle: () => void;
 }) {
   const pathname = usePathname();
-  const tail = pathname.split('/').pop();
+  const params = useParams();
+  const [pageName, setPageName] = useState("Home");
+
+  useEffect(() => {
+    const getPageName = async () => {
+      let name = "Home";
+      
+      if (pathname.includes('/Quizzes/') && pathname.includes('/edit')) {
+        // For quiz edit page - just show "Edit Quiz"
+        name = "Quizzes > Edit Quiz";
+      } else if (pathname.includes('/Quizzes/') && pathname.includes('/preview')) {
+        name = "Quizzes > Preview";
+      } else if (pathname.includes('/Quizzes/') && pathname.includes('/take')) {
+        name = "Quizzes > Take Quiz";
+      } else if (pathname.includes('/Quizzes/') && !pathname.includes('/edit')) {
+        name = "Quizzes > Quiz Details";
+      } else if (pathname.includes('/Quizzes')) {
+        name = "Quizzes";
+      } else if (pathname.includes('/Modules')) {
+        name = "Modules";
+      } else if (pathname.includes('/Assignments/') && pathname.includes('/Editor')) {
+        name = "Assignments > Assignment Editor";
+      } else if (pathname.includes('/Assignments')) {
+        name = "Assignments";
+      } else if (pathname.includes('/Grades')) {
+        name = "Grades";
+      } else if (pathname.includes('/People')) {
+        name = "People";
+      } else if (pathname.includes('/Piazza')) {
+        name = "Piazza";
+      } else if (pathname.includes('/Zoom')) {
+        name = "Zoom";
+      }
+      
+      setPageName(name);
+    };
+    
+    getPageName();
+  }, [pathname, params]);
 
   return (
     <h2 className="text-danger">
@@ -21,7 +59,7 @@ export default function Breadcrumb({
         aria-label="Toggle course navigation"
         onClick={onToggle}
       />
-      {course?.name} &gt; {tail}
+      {course?.name} &gt; {pageName}
     </h2>
   );
 }
