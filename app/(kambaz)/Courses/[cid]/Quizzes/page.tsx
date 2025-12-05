@@ -29,7 +29,6 @@ export default function Quizzes() {
   const isAdmin = currentUser?.role === "ADMIN";
   const canManageQuizzes = isFaculty || isAdmin;
   
-  // Filter quizzes
   let displayQuizzes = quizzes
     .filter((quiz: any) => quiz.course === cid)
     .filter((quiz: any) => 
@@ -42,7 +41,6 @@ export default function Quizzes() {
       return true;
     });
 
-  // Sort quizzes
   if (sortBy === "title") {
     displayQuizzes = [...displayQuizzes].sort((a: any, b: any) => 
       a.title.localeCompare(b.title)

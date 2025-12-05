@@ -3,7 +3,6 @@ import { usePathname, useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { FaAlignJustify } from 'react-icons/fa';
 import * as quizClient from '../../Courses/[cid]/Quizzes/client';
-// change
 export default function Breadcrumb({
   course,
   onToggle,
@@ -19,7 +18,6 @@ export default function Breadcrumb({
     const getPageName = async () => {
       let name = "Home";
       
-      // Check if we're on a quiz-related page
       if (pathname.includes('/Quizzes/') && params.qid) {
         try {
           const qid = params.qid as string;
