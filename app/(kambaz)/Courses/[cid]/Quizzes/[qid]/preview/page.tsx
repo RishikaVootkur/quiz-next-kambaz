@@ -90,6 +90,10 @@ export default function QuizPreview() {
     setShowResults(true);
   };
 
+const handleKeepEditing = () => {
+  router.push(`/Courses/${cid}/Quizzes/${qid}/edit`);
+};
+
   const isCorrect = (question: any) => {
     const userAnswer = answers[question._id];
     
@@ -214,7 +218,7 @@ export default function QuizPreview() {
                     alignItems: 'flex-start'
                   }}
                 >
-                  <span style={{ color: '#dc2626', marginRight: '0.5rem' }}>ⓘ</span>
+                  <span style={{ color: '#dc2626', marginRight: '0.5rem', flexShrink: 0 }}>ⓘ</span>
                   <span style={{ color: '#dc2626', fontSize: '0.875rem' }}>
                     This is a preview of the published version of the quiz
                   </span>
@@ -376,7 +380,7 @@ export default function QuizPreview() {
                 onClick={handlePrevious}
                 disabled={currentQuestionIndex === 0}
               >
-                - Previous
+                ← Previous
               </Button>
               
               {currentQuestionIndex === quiz.questions.length - 1 ? (
@@ -384,7 +388,10 @@ export default function QuizPreview() {
                   Submit Quiz
                 </Button>
               ) : (
-                <Button variant="secondary" onClick={handleNext}>
+                <Button 
+                  variant="secondary" 
+                  onClick={handleNext}
+                >
                   Next →
                 </Button>
               )}
@@ -409,7 +416,7 @@ export default function QuizPreview() {
               </span>
               <Button
                 variant="outline-secondary"
-                onClick={() => router.push(`/Kanbas/Courses/${cid}/Quizzes/${qid}/Editor`)}
+                onClick={handleKeepEditing}
               >
                 ✏️ Keep Editing This Quiz
               </Button>
@@ -430,7 +437,7 @@ export default function QuizPreview() {
               borderLeft: '1px solid #dee2e6',
               overflowY: 'auto',
               boxShadow: '-2px 0 4px rgba(0,0,0,0.1)',
-              display: window.innerWidth >= 768 ? 'block' : 'none'
+              display: typeof window !== 'undefined' && window.innerWidth >= 768 ? 'block' : 'none'
             }}
           >
             <div style={{ padding: '1.5rem 1rem' }}>
@@ -503,7 +510,7 @@ export default function QuizPreview() {
           </div>
         )}
 
-        {/* Mobile Toggle Button */}
+        {/* Toggle Sidebar Button (Mobile) */}
         {!showSidebar && (
           <button
             onClick={() => setShowSidebar(true)}
@@ -519,7 +526,7 @@ export default function QuizPreview() {
               boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
               cursor: 'pointer',
               zIndex: 50,
-              display: window.innerWidth < 768 ? 'block' : 'none'
+              display: typeof window !== 'undefined' && window.innerWidth < 768 ? 'block' : 'none'
             }}
           >
             ←
