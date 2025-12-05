@@ -2,6 +2,7 @@
 import { usePathname, useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { FaAlignJustify } from 'react-icons/fa';
+import * as quizClient from '../../Courses/[cid]/Quizzes/client';
 
 export default function Breadcrumb({
   course,
@@ -18,15 +19,16 @@ export default function Breadcrumb({
     const getPageName = async () => {
       let name = "Home";
       
-      if (pathname.includes('/Quizzes/') && pathname.includes('/edit')) {
-        // For quiz edit page - just show "Edit Quiz"
-        name = "Quizzes > Edit Quiz";
-      } else if (pathname.includes('/Quizzes/') && pathname.includes('/preview')) {
-        name = "Quizzes > Preview";
-      } else if (pathname.includes('/Quizzes/') && pathname.includes('/take')) {
-        name = "Quizzes > Take Quiz";
-      } else if (pathname.includes('/Quizzes/') && !pathname.includes('/edit')) {
-        name = "Quizzes > Quiz Details";
+      // Check if we're on a quiz-related page
+      if (pathname.includes('/Quizzes/') && params.qid) {
+        try {
+          const qid = params.qid as string;
+          const quiz = await quizClient.findQuizById(qid);
+          name = `Quizzes > ${quiz.title}`;
+        } catch (error) {
+          console.error("Error fetching quiz:", error);
+          name = "Quizzes > Quiz";
+        }
       } else if (pathname.includes('/Quizzes')) {
         name = "Quizzes";
       } else if (pathname.includes('/Modules')) {
