@@ -2,8 +2,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { Button, Form, Badge, Dropdown, Modal } from "react-bootstrap";
-import { BsThreeDotsVertical, BsCalendar3, BsTypeBold, BsTypeItalic, BsTypeUnderline } from "react-icons/bs";
+import { Button, Form, Badge, Modal } from "react-bootstrap";
+import { BsThreeDotsVertical, BsTypeBold, BsTypeItalic, BsTypeUnderline } from "react-icons/bs";
 import * as client from "../../client";
 
 export default function QuizDetailsEditor({ 
@@ -71,13 +71,6 @@ export default function QuizDetailsEditor({
 
   return (
     <>
-
-    <style>{`
-      .custom-datetime::-webkit-calendar-picker-indicator {
-        display: none;
-      }
-    `}</style>
-
       <Form>
         {/* Title Input */}
         <Form.Group className="mb-3">
@@ -96,66 +89,12 @@ export default function QuizDetailsEditor({
           
           {/* Menu bar */}
           <div className="border border-bottom-0 p-2 bg-light d-flex align-items-center gap-3">
-            <Dropdown>
-              <Dropdown.Toggle variant="link" size="sm" className="text-muted text-decoration-none p-0">
-                Edit
-              </Dropdown.Toggle>
-              <Dropdown.Menu>
-                <Dropdown.Item>Undo</Dropdown.Item>
-                <Dropdown.Item>Redo</Dropdown.Item>
-              </Dropdown.Menu>
-            </Dropdown>
-            
-            <Dropdown>
-              <Dropdown.Toggle variant="link" size="sm" className="text-muted text-decoration-none p-0">
-                View
-              </Dropdown.Toggle>
-              <Dropdown.Menu>
-                <Dropdown.Item>Fullscreen</Dropdown.Item>
-              </Dropdown.Menu>
-            </Dropdown>
-            
-            <Dropdown>
-              <Dropdown.Toggle variant="link" size="sm" className="text-muted text-decoration-none p-0">
-                Insert
-              </Dropdown.Toggle>
-              <Dropdown.Menu>
-                <Dropdown.Item>Image</Dropdown.Item>
-                <Dropdown.Item>Link</Dropdown.Item>
-                <Dropdown.Item>Table</Dropdown.Item>
-              </Dropdown.Menu>
-            </Dropdown>
-            
-            <Dropdown>
-              <Dropdown.Toggle variant="link" size="sm" className="text-muted text-decoration-none p-0">
-                Format
-              </Dropdown.Toggle>
-              <Dropdown.Menu>
-                <Dropdown.Item>Bold</Dropdown.Item>
-                <Dropdown.Item>Italic</Dropdown.Item>
-                <Dropdown.Item>Underline</Dropdown.Item>
-              </Dropdown.Menu>
-            </Dropdown>
-            
-            <Dropdown>
-              <Dropdown.Toggle variant="link" size="sm" className="text-muted text-decoration-none p-0">
-                Tools
-              </Dropdown.Toggle>
-              <Dropdown.Menu>
-                <Dropdown.Item>Spell Check</Dropdown.Item>
-                <Dropdown.Item>Word Count</Dropdown.Item>
-              </Dropdown.Menu>
-            </Dropdown>
-            
-            <Dropdown>
-              <Dropdown.Toggle variant="link" size="sm" className="text-muted text-decoration-none p-0">
-                Table
-              </Dropdown.Toggle>
-              <Dropdown.Menu>
-                <Dropdown.Item>Insert Table</Dropdown.Item>
-                <Dropdown.Item>Delete Table</Dropdown.Item>
-              </Dropdown.Menu>
-            </Dropdown>
+            <span className="text-muted small">Edit</span>
+            <span className="text-muted small">View</span>
+            <span className="text-muted small">Insert</span>
+            <span className="text-muted small">Format</span>
+            <span className="text-muted small">Tools</span>
+            <span className="text-muted small">Table</span>
             
             <div className="ms-auto">
               <span className="text-success fw-bold">100%</span>
@@ -208,40 +147,13 @@ export default function QuizDetailsEditor({
             
             <div className="vr"></div>
             
-            <Dropdown>
-              <Dropdown.Toggle variant="light" size="sm" className="border-0">
-                A
-              </Dropdown.Toggle>
-              <Dropdown.Menu>
-                <Dropdown.Item>Text Color</Dropdown.Item>
-                <Dropdown.Item>Background Color</Dropdown.Item>
-              </Dropdown.Menu>
-            </Dropdown>
-            
-            <Button variant="light" size="sm" className="border-0 p-1 px-2">
-              ✏️
-            </Button>
-            
-            <Dropdown>
-              <Dropdown.Toggle variant="light" size="sm" className="border-0">
-                T²
-              </Dropdown.Toggle>
-              <Dropdown.Menu>
-                <Dropdown.Item>Superscript</Dropdown.Item>
-                <Dropdown.Item>Subscript</Dropdown.Item>
-              </Dropdown.Menu>
-            </Dropdown>
+            <span className="text-muted small">A</span>
+            <span className="text-muted small">✏️</span>
+            <span className="text-muted small">T²</span>
             
             <div className="vr"></div>
             
-            <Dropdown>
-              <Dropdown.Toggle variant="light" size="sm" className="border-0">
-                ⋮
-              </Dropdown.Toggle>
-              <Dropdown.Menu>
-                <Dropdown.Item>More Options</Dropdown.Item>
-              </Dropdown.Menu>
-            </Dropdown>
+            <BsThreeDotsVertical className="text-muted" />
           </div>
 
           {/* Text area */}
@@ -356,6 +268,63 @@ export default function QuizDetailsEditor({
                 />
               </Form.Group>
             )}
+
+            {/* NEW: Show Correct Answers */}
+            <Form.Group className="mb-3">
+              <Form.Label>Show Correct Answers</Form.Label>
+              <Form.Select
+                value={quiz.showCorrectAnswers || "IMMEDIATELY"}
+                onChange={(e) => setQuiz({ ...quiz, showCorrectAnswers: e.target.value })}
+                style={{ maxWidth: '300px' }}
+              >
+                <option value="IMMEDIATELY">Immediately</option>
+                <option value="AFTER_DUE_DATE">After Due Date</option>
+                <option value="AFTER_LAST_ATTEMPT">After Last Attempt</option>
+                <option value="NEVER">Never</option>
+              </Form.Select>
+            </Form.Group>
+
+            {/* NEW: Access Code */}
+            <Form.Group className="mb-3">
+              <Form.Label>Access Code</Form.Label>
+              <Form.Control
+                type="text"
+                value={quiz.accessCode || ""}
+                onChange={(e) => setQuiz({ ...quiz, accessCode: e.target.value })}
+                placeholder="Optional access code"
+                style={{ maxWidth: '300px' }}
+              />
+              <Form.Text className="text-muted">
+                Students must enter this code to access the quiz
+              </Form.Text>
+            </Form.Group>
+
+            {/* NEW: One Question at a Time */}
+            <Form.Check
+              type="checkbox"
+              label="One Question at a Time"
+              checked={quiz.oneQuestionAtATime}
+              onChange={(e) => setQuiz({ ...quiz, oneQuestionAtATime: e.target.checked })}
+              className="mb-3"
+            />
+
+            {/* NEW: Webcam Required */}
+            <Form.Check
+              type="checkbox"
+              label="Webcam Required"
+              checked={quiz.webcamRequired}
+              onChange={(e) => setQuiz({ ...quiz, webcamRequired: e.target.checked })}
+              className="mb-3"
+            />
+
+            {/* NEW: Lock Questions After Answering */}
+            <Form.Check
+              type="checkbox"
+              label="Lock Questions After Answering"
+              checked={quiz.lockQuestionsAfterAnswering}
+              onChange={(e) => setQuiz({ ...quiz, lockQuestionsAfterAnswering: e.target.checked })}
+              className="mb-3"
+            />
           </div>
         </div>
 
@@ -392,68 +361,41 @@ export default function QuizDetailsEditor({
 
               <Form.Group className="mb-4">
                 <Form.Label className="fw-bold">Due</Form.Label>
-                <div className="input-group">
-                  <Form.Control
-                    type="datetime-local"
-                    value={quiz.dueDate ? new Date(quiz.dueDate).toISOString().slice(0, 16) : ""}
-                    onChange={(e) => setQuiz({ ...quiz, dueDate: e.target.value })}
-                    style={{
-                        colorScheme: 'light'
-                    }}
-                    className="custom-datetime"
-                    />
-                  <span className="input-group-text bg-white border-start-0">
-                    <BsCalendar3 />
-                  </span>
-                </div>
+                <Form.Control
+                  type="datetime-local"
+                  value={quiz.dueDate ? new Date(quiz.dueDate).toISOString().slice(0, 16) : ""}
+                  onChange={(e) => setQuiz({ ...quiz, dueDate: e.target.value })}
+                />
               </Form.Group>
 
               <div className="row">
                 <div className="col-md-6">
                   <Form.Group className="mb-0">
                     <Form.Label className="fw-bold">Available from</Form.Label>
-                    <div className="input-group">
-                      <Form.Control
-                        type="datetime-local"
-                        value={quiz.availableDate ? new Date(quiz.availableDate).toISOString().slice(0, 16) : ""}
-                        onChange={(e) => setQuiz({ ...quiz, availableDate: e.target.value })}
-                        style={{
-                            colorScheme: 'light'
-                        }}
-                        className="custom-datetime"
-                        />
-                      <span className="input-group-text bg-white border-start-0">
-                        <BsCalendar3 />
-                      </span>
-                    </div>
+                    <Form.Control
+                      type="datetime-local"
+                      value={quiz.availableDate ? new Date(quiz.availableDate).toISOString().slice(0, 16) : ""}
+                      onChange={(e) => setQuiz({ ...quiz, availableDate: e.target.value })}
+                    />
                   </Form.Group>
                 </div>
                 <div className="col-md-6">
                   <Form.Group className="mb-0">
                     <Form.Label className="fw-bold">Until</Form.Label>
-                    <div className="input-group">
-                      <Form.Control
-                            type="datetime-local"
-                            value={quiz.untilDate ? new Date(quiz.untilDate).toISOString().slice(0, 16) : ""}
-                            onChange={(e) => setQuiz({ ...quiz, untilDate: e.target.value })}
-                            style={{
-                                colorScheme: 'light'
-                            }}
-                            className="custom-datetime"
-                            />
-                      <span className="input-group-text bg-white border-start-0">
-                        <BsCalendar3 />
-                      </span>
-                    </div>
+                    <Form.Control
+                      type="datetime-local"
+                      value={quiz.untilDate ? new Date(quiz.untilDate).toISOString().slice(0, 16) : ""}
+                      onChange={(e) => setQuiz({ ...quiz, untilDate: e.target.value })}
+                    />
                   </Form.Group>
                 </div>
               </div>
             </div>
 
-            <div className="mt-3 text-center border-top py-3 bg-light" style={{ borderStyle: 'dashed', borderColor: '#dee2e6'}}>
+            <div className="mt-3 text-center border-top py-3 bg-light" style={{ borderStyle: 'dashed', borderColor: '#dee2e6' }}>
               <Button 
                 variant="link" 
-                className="text-muted text-decoration-none "
+                className="text-muted text-decoration-none"
                 onClick={() => setShowAssignModal(true)}
               >
                 + Add
