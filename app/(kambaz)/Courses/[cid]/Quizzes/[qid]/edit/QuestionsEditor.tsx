@@ -1,6 +1,6 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button, Form } from "react-bootstrap";
 import { BsTypeBold, BsTypeItalic, BsTypeUnderline, BsPencil, BsTrash } from "react-icons/bs";
 
@@ -12,9 +12,9 @@ export default function QuestionsEditor({
   setQuiz: (quiz: any) => void;
 }) {
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
+  const [originalQuestion, setOriginalQuestion] = useState<any>(null);
 
   const handleAddQuestion = () => {
-    // Always create Multiple Choice question by default
     const newQuestion: any = {
       _id: `temp-${Date.now()}`,
       type: "MULTIPLE_CHOICE",
@@ -27,6 +27,7 @@ export default function QuestionsEditor({
         { text: "5", isCorrect: true },
         { text: "7", isCorrect: false },
       ],
+      isNew: true, // Mark as new question
     };
 
     setQuiz({
@@ -34,26 +35,45 @@ export default function QuestionsEditor({
       questions: [...(quiz.questions || []), newQuestion],
     });
     setEditingQuestionId(newQuestion._id);
+    setOriginalQuestion(null); // No original for new questions
+  };
+
+  const handleEditQuestion = (question: any) => {
+    setOriginalQuestion({ ...question }); // Save original state
+    setEditingQuestionId(question._id);
   };
 
   const handleSaveQuestion = (question: any) => {
+    const updatedQuestion = { ...question };
+    delete updatedQuestion.isNew; // Remove the isNew flag when saving
+    
     const updatedQuestions = quiz.questions.map((q: any) =>
-      q._id === question._id ? question : q
+      q._id === question._id ? updatedQuestion : q
     );
     setQuiz({ ...quiz, questions: updatedQuestions });
     setEditingQuestionId(null);
+    setOriginalQuestion(null);
   };
 
   const handleCancelEdit = (questionId: string) => {
-    // Check if this is a new question (temp ID) that hasn't been saved
-    if (questionId.startsWith('temp-')) {
-      // Remove the unsaved question
+    const question = quiz.questions.find((q: any) => q._id === questionId);
+    
+    // If it's a new question that was never saved, delete it
+    if (question?.isNew) {
       setQuiz({
         ...quiz,
         questions: quiz.questions.filter((q: any) => q._id !== questionId),
       });
+    } else if (originalQuestion) {
+      // If it's an existing question, restore the original state
+      const updatedQuestions = quiz.questions.map((q: any) =>
+        q._id === questionId ? originalQuestion : q
+      );
+      setQuiz({ ...quiz, questions: updatedQuestions });
     }
+    
     setEditingQuestionId(null);
+    setOriginalQuestion(null);
   };
 
   const handleDeleteQuestion = (questionId: string) => {
@@ -69,7 +89,6 @@ export default function QuestionsEditor({
 
   return (
     <div>
-      {/* Only show header when not editing */}
       {!editingQuestionId && (
         <>
           <div className="d-flex justify-content-between align-items-center mb-4">
@@ -87,7 +106,6 @@ export default function QuestionsEditor({
         </>
       )}
 
-      {/* Questions List */}
       <div>
         {quiz.questions?.map((question: any) => (
           <div key={question._id}>
@@ -101,7 +119,7 @@ export default function QuestionsEditor({
               <div 
                 className="border rounded p-3 mb-3 bg-white"
                 style={{ cursor: 'pointer' }}
-                onClick={() => setEditingQuestionId(question._id)}
+                onClick={() => handleEditQuestion(question)}
               >
                 <div className="d-flex justify-content-between align-items-start">
                   <div className="flex-grow-1">
@@ -109,7 +127,9 @@ export default function QuestionsEditor({
                       {question.title} 
                       <span className="text-muted ms-2">({question.type.replace('_', ' ')})</span>
                     </h6>
-                    <p className="text-muted mb-0">{question.question}</p>
+                    <p className="text-muted mb-0">
+                      <span dangerouslySetInnerHTML={{ __html: question.question }} />
+                    </p>
                   </div>
                   <div className="d-flex gap-2 align-items-center">
                     <span className="text-muted">{question.points} pts</span>
@@ -147,6 +167,47 @@ function QuestionEditor({
   const [question, setQuestion] = useState(initialQuestion);
   const [fontSize, setFontSize] = useState("12pt");
   const [textFormat, setTextFormat] = useState("Paragraph");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const applyFormat = (formatType: 'bold' | 'italic' | 'underline') => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = question.question.substring(start, end);
+    
+    if (!selectedText) {
+      alert('Please select text first');
+      return;
+    }
+
+    let formattedText = '';
+    
+    switch (formatType) {
+      case 'bold':
+        formattedText = `<b>${selectedText}</b>`;
+        break;
+      case 'italic':
+        formattedText = `<i>${selectedText}</i>`;
+        break;
+      case 'underline':
+        formattedText = `<u>${selectedText}</u>`;
+        break;
+    }
+
+    const newText = 
+      question.question.substring(0, start) + 
+      formattedText + 
+      question.question.substring(end);
+    
+    setQuestion({ ...question, question: newText });
+
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + formattedText.length, start + formattedText.length);
+    }, 10);
+  };
 
   const handleAddChoice = () => {
     setQuestion({
@@ -196,7 +257,6 @@ function QuestionEditor({
 
   return (
     <div className="border rounded mb-3 bg-white" style={{ maxWidth: '900px' }}>
-      {/* Header */}
       <div className="border-bottom p-3 bg-light">
         <div className="row g-3 align-items-center">
           <div className="col-md-4">
@@ -255,7 +315,6 @@ function QuestionEditor({
         </div>
       </div>
 
-      {/* Body */}
       <div className="p-4">
         <p className="text-muted small mb-3">
           {question.type === "MULTIPLE_CHOICE" && "Enter your question and multiple answers, then select the one correct answer."}
@@ -263,7 +322,6 @@ function QuestionEditor({
           {question.type === "FILL_BLANK" && "Enter your question text, then define all possible correct answers for the blank. Students will see the question followed by a small text box to type their answer."}
         </p>
 
-        {/* Question Editor */}
         <Form.Group className="mb-4">
           <Form.Label style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Question:</Form.Label>
           
@@ -304,13 +362,31 @@ function QuestionEditor({
             
             <div className="vr"></div>
             
-            <Button variant="light" size="sm" className="border-0 p-1 px-2" title="Bold">
+            <Button 
+              variant="light" 
+              size="sm" 
+              className="border-0 p-1 px-2" 
+              title="Bold"
+              onClick={() => applyFormat('bold')}
+            >
               <BsTypeBold />
             </Button>
-            <Button variant="light" size="sm" className="border-0 p-1 px-2" title="Italic">
+            <Button 
+              variant="light" 
+              size="sm" 
+              className="border-0 p-1 px-2" 
+              title="Italic"
+              onClick={() => applyFormat('italic')}
+            >
               <BsTypeItalic />
             </Button>
-            <Button variant="light" size="sm" className="border-0 p-1 px-2" title="Underline">
+            <Button 
+              variant="light" 
+              size="sm" 
+              className="border-0 p-1 px-2" 
+              title="Underline"
+              onClick={() => applyFormat('underline')}
+            >
               <BsTypeUnderline />
             </Button>
             
@@ -328,6 +404,7 @@ function QuestionEditor({
           </div>
 
           <Form.Control
+            ref={textareaRef}
             as="textarea"
             rows={3}
             value={question.question}
@@ -337,11 +414,9 @@ function QuestionEditor({
           />
         </Form.Group>
 
-        {/* Answers */}
         <Form.Group>
           <Form.Label style={{ fontWeight: '600', marginBottom: '1rem' }}>Answers:</Form.Label>
 
-          {/* MULTIPLE CHOICE */}
           {question.type === "MULTIPLE_CHOICE" && (
             <div>
               {question.choices?.map((choice: any, index: number) => (
@@ -409,7 +484,6 @@ function QuestionEditor({
             </div>
           )}
 
-          {/* TRUE FALSE */}
           {question.type === "TRUE_FALSE" && (
             <div>
               <div 
@@ -453,7 +527,6 @@ function QuestionEditor({
             </div>
           )}
 
-          {/* FILL BLANK */}
           {question.type === "FILL_BLANK" && (
             <div>
               {question.possibleAnswers?.map((answer: string, index: number) => (
@@ -498,7 +571,6 @@ function QuestionEditor({
           )}
         </Form.Group>
 
-        {/* Buttons */}
         <div className="d-flex gap-2 mt-4 pt-3">
           <Button variant="light" className="border" onClick={onCancel}>
             Cancel

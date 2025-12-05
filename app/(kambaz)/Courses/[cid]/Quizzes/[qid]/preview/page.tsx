@@ -90,9 +90,9 @@ export default function QuizPreview() {
     setShowResults(true);
   };
 
-const handleKeepEditing = () => {
-  router.push(`/Courses/${cid}/Quizzes/${qid}/edit`);
-};
+  const handleKeepEditing = () => {
+    router.push(`/Courses/${cid}/Quizzes/${qid}/edit`);
+  };
 
   const isCorrect = (question: any) => {
     const userAnswer = answers[question._id];
@@ -127,57 +127,36 @@ const handleKeepEditing = () => {
     }).toLowerCase();
   };
 
-  const parseQuestionText = (text: string) => {
-    const keywords = ['label', 'input', 'HTML', 'id', 'for', 'click', 'focus', 'element', 'attribute'];
-    let formatted = text;
-    
-    keywords.forEach(keyword => {
-      const regex = new RegExp(`\\b${keyword}\\b`, 'gi');
-      formatted = formatted.replace(regex, `**${keyword}**`);
-    });
-    
-    return formatted;
-  };
-
-  const renderFormattedText = (text: string) => {
-    const parts = text.split(/(\*\*.*?\*\*)/g);
-    return parts.map((part, index) => {
-      if (part.startsWith('**') && part.endsWith('**')) {
-        return <strong key={index}>{part.slice(2, -2)}</strong>;
-      }
-      return <span key={index}>{part}</span>;
-    });
-  };
-
   if (!quiz) return <div className="p-4">Loading...</div>;
 
   if (showResults) {
-    return (
-      <div id="wd-quiz-preview" className="p-4">
-        <div className="alert alert-success">
-          <h4>Quiz Submitted!</h4>
-          <p>Score: {score} / {quiz.points}</p>
-        </div>
-
-        {quiz.questions?.map((question: any, index: number) => (
-          <div key={question._id} className={`card mb-3 ${isCorrect(question) ? 'border-success' : 'border-danger'}`}>
-            <div className="card-body">
-              <h5>
-                Question {index + 1} ({question.points} pts)
-                {isCorrect(question) ? " ✓" : " ✗"}
-              </h5>
-              <p>{question.question}</p>
-              <p><strong>Your answer:</strong> {String(answers[question._id])}</p>
-            </div>
-          </div>
-        ))}
-
-        <Button variant="primary" onClick={() => router.back()}>
-          Back to Quiz
-        </Button>
+  const totalPoints = quiz.questions?.reduce((sum: number, q: any) => sum + (q.points || 0), 0) || 0;
+  
+  return (
+    <div id="wd-quiz-preview" className="p-4">
+      <div className="alert alert-success">
+        <h4>Quiz Submitted!</h4>
+        <p>Score: {score} / {totalPoints}</p>
       </div>
-    );
-  }
+
+      {quiz.questions?.map((question: any, index: number) => (
+        <div key={question._id} className={`card mb-3 ${isCorrect(question) ? 'border-success' : 'border-danger'}`}>
+          <div className="card-body">
+            <h5>
+              Question {index + 1} ({question.points} pts) {isCorrect(question) ? "✓" : "✗"}
+            </h5>
+            <div dangerouslySetInnerHTML={{ __html: question.question }} />
+            <p className="mt-2"><strong>Your answer:</strong> {String(answers[question._id])}</p>
+          </div>
+        </div>
+      ))}
+
+      <Button variant="primary" onClick={() => router.back()}>
+        Back to Quiz
+      </Button>
+    </div>
+  );
+}
 
   const currentQuestion = quiz.questions[currentQuestionIndex];
 
@@ -192,79 +171,67 @@ const handleKeepEditing = () => {
             transition: 'margin-right 0.3s ease'
           }}
         >
-          <div style={{ maxWidth: '800px', margin: '0 auto', padding: '1.5rem' }}>
-            {/* Header */}
+          <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '1rem' }}>
+            {/* Compact Header */}
             <div 
               style={{ 
                 backgroundColor: 'white', 
                 border: '1px solid #dee2e6', 
                 borderRadius: '0.25rem',
-                marginBottom: '1.5rem'
+                marginBottom: '1rem',
+                padding: '1rem'
               }}
             >
-              <div style={{ padding: '1.5rem' }}>
-                <h1 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '1rem' }}>
-                  {quiz.title}
-                </h1>
-                
-                <div 
-                  style={{ 
-                    backgroundColor: '#fef2f2', 
-                    border: '1px solid #fecaca', 
-                    borderRadius: '0.25rem',
-                    padding: '0.75rem',
-                    marginBottom: '1rem',
-                    display: 'flex',
-                    alignItems: 'flex-start'
-                  }}
-                >
-                  <span style={{ color: '#dc2626', marginRight: '0.5rem', flexShrink: 0 }}>ⓘ</span>
-                  <span style={{ color: '#dc2626', fontSize: '0.875rem' }}>
-                    This is a preview of the published version of the quiz
-                  </span>
-                </div>
+              <h1 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.5rem' }}>
+                {quiz.title}
+              </h1>
+              
+              <div 
+                style={{ 
+                  backgroundColor: '#fef2f2', 
+                  border: '1px solid #fecaca', 
+                  borderRadius: '0.25rem',
+                  padding: '0.5rem',
+                  marginBottom: '0.5rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  fontSize: '0.8rem'
+                }}
+              >
+                <span style={{ color: '#dc2626', marginRight: '0.5rem' }}>ⓘ</span>
+                <span style={{ color: '#dc2626' }}>
+                  This is a preview of the published version of the quiz
+                </span>
+              </div>
 
-                <div style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '1rem' }}>
-                  Started: {formatDateTime(startTime)}
-                </div>
-
-                <div>
-                  <h2 style={{ fontWeight: '600', fontSize: '1.125rem', marginBottom: '0.5rem' }}>
-                    Quiz Instructions
-                  </h2>
-                  <p style={{ color: '#374151' }}>{quiz.description || 'Complete all questions to the best of your ability.'}</p>
-                </div>
+              <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+                Started: {formatDateTime(startTime)} | Quiz Instructions: {quiz.description || 'Complete all questions to the best of your ability.'}
               </div>
             </div>
 
-            {/* Current Question */}
+            {/* Current Question - Compact */}
             <div 
               style={{ 
                 backgroundColor: 'white', 
                 border: '1px solid #dee2e6', 
                 borderRadius: '0.25rem',
-                marginBottom: '1.5rem'
+                marginBottom: '1rem'
               }}
             >
-              <div style={{ padding: '1.5rem' }}>
+              <div style={{ padding: '1rem' }}>
                 <div 
                   style={{ 
                     display: 'flex', 
                     alignItems: 'center', 
                     justifyContent: 'space-between',
-                    marginBottom: '1rem',
-                    paddingBottom: '1rem',
+                    marginBottom: '0.75rem',
+                    paddingBottom: '0.75rem',
                     borderBottom: '1px solid #e5e7eb'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <input 
-                      type="checkbox" 
-                      style={{ width: '1.25rem', height: '1.25rem', marginRight: '0.75rem', cursor: 'pointer' }}
-                      checked={false}
-                      readOnly
-                    />
-                    <h3 style={{ fontWeight: '600', margin: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '1.5rem', color: '#6b7280' }}>▷</span>
+                    <h3 style={{ fontWeight: '600', margin: 0, fontSize: '1.1rem' }}>
                       Question {currentQuestionIndex + 1}
                     </h3>
                   </div>
@@ -273,14 +240,15 @@ const handleKeepEditing = () => {
                   </span>
                 </div>
 
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <p style={{ color: '#1f2937', lineHeight: '1.625' }}>
-                    {renderFormattedText(parseQuestionText(currentQuestion.question))}
-                  </p>
+                <div style={{ marginBottom: '1rem' }}>
+                  <div 
+                    style={{ color: '#1f2937', lineHeight: '1.5', fontSize: '0.95rem' }}
+                    dangerouslySetInnerHTML={{ __html: currentQuestion.question }}
+                  />
                 </div>
 
-                {/* Answer Options */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {/* Answer Options - Compact */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {currentQuestion.type === "MULTIPLE_CHOICE" && (
                     <>
                       {currentQuestion.choices.map((choice: any, choiceIndex: number) => (
@@ -289,7 +257,7 @@ const handleKeepEditing = () => {
                           style={{ 
                             display: 'flex', 
                             alignItems: 'center',
-                            padding: '0.75rem',
+                            padding: '0.6rem',
                             border: '1px solid #d1d5db',
                             borderRadius: '0.25rem',
                             cursor: 'pointer',
@@ -305,7 +273,7 @@ const handleKeepEditing = () => {
                             onChange={() => handleAnswerChange(currentQuestion._id, choice.text)}
                             style={{ width: '1rem', height: '1rem', marginRight: '0.75rem' }}
                           />
-                          <span style={{ color: '#1f2937' }}>{choice.text}</span>
+                          <span style={{ color: '#1f2937', fontSize: '0.9rem' }}>{choice.text}</span>
                         </label>
                       ))}
                     </>
@@ -317,7 +285,7 @@ const handleKeepEditing = () => {
                         style={{ 
                           display: 'flex', 
                           alignItems: 'center',
-                          padding: '0.75rem',
+                          padding: '0.6rem',
                           border: '1px solid #d1d5db',
                           borderRadius: '0.25rem',
                           cursor: 'pointer'
@@ -336,7 +304,7 @@ const handleKeepEditing = () => {
                         style={{ 
                           display: 'flex', 
                           alignItems: 'center',
-                          padding: '0.75rem',
+                          padding: '0.6rem',
                           border: '1px solid #d1d5db',
                           borderRadius: '0.25rem',
                           cursor: 'pointer'
@@ -365,7 +333,7 @@ const handleKeepEditing = () => {
                         padding: '0.5rem 1rem',
                         border: '1px solid #d1d5db',
                         borderRadius: '0.25rem',
-                        fontSize: '1rem'
+                        fontSize: '0.95rem'
                       }}
                     />
                   )}
@@ -374,23 +342,25 @@ const handleKeepEditing = () => {
             </div>
 
             {/* Navigation Buttons */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
               <Button
                 variant="outline-secondary"
                 onClick={handlePrevious}
                 disabled={currentQuestionIndex === 0}
+                size="sm"
               >
                 ← Previous
               </Button>
               
               {currentQuestionIndex === quiz.questions.length - 1 ? (
-                <Button variant="danger" onClick={handleSubmit}>
+                <Button variant="danger" onClick={handleSubmit} size="sm">
                   Submit Quiz
                 </Button>
               ) : (
                 <Button 
                   variant="secondary" 
                   onClick={handleNext}
+                  size="sm"
                 >
                   Next →
                 </Button>
@@ -403,20 +373,21 @@ const handleKeepEditing = () => {
                 backgroundColor: 'white', 
                 border: '1px solid #dee2e6', 
                 borderRadius: '0.25rem',
-                padding: '1rem',
+                padding: '0.75rem',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 flexWrap: 'wrap',
-                gap: '1rem'
+                gap: '0.5rem'
               }}
             >
-              <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+              <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>
                 Quiz saved at {formatDateTime(new Date())}
               </span>
               <Button
                 variant="outline-secondary"
                 onClick={handleKeepEditing}
+                size="sm"
               >
                 ✏️ Keep Editing This Quiz
               </Button>

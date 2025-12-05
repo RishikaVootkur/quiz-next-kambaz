@@ -269,7 +269,7 @@ export default function QuizDetailsEditor({
               </Form.Group>
             )}
 
-            {/* NEW: Show Correct Answers */}
+            {/* Show Correct Answers */}
             <Form.Group className="mb-3">
               <Form.Label>Show Correct Answers</Form.Label>
               <Form.Select
@@ -284,7 +284,7 @@ export default function QuizDetailsEditor({
               </Form.Select>
             </Form.Group>
 
-            {/* NEW: Access Code */}
+            {/* Access Code */}
             <Form.Group className="mb-3">
               <Form.Label>Access Code</Form.Label>
               <Form.Control
@@ -299,7 +299,7 @@ export default function QuizDetailsEditor({
               </Form.Text>
             </Form.Group>
 
-            {/* NEW: One Question at a Time */}
+            {/* One Question at a Time */}
             <Form.Check
               type="checkbox"
               label="One Question at a Time"
@@ -308,7 +308,7 @@ export default function QuizDetailsEditor({
               className="mb-3"
             />
 
-            {/* NEW: Webcam Required */}
+            {/* Webcam Required */}
             <Form.Check
               type="checkbox"
               label="Webcam Required"
@@ -317,12 +317,43 @@ export default function QuizDetailsEditor({
               className="mb-3"
             />
 
-            {/* NEW: Lock Questions After Answering */}
+            {/* Lock Questions After Answering */}
             <Form.Check
               type="checkbox"
               label="Lock Questions After Answering"
               checked={quiz.lockQuestionsAfterAnswering}
               onChange={(e) => setQuiz({ ...quiz, lockQuestionsAfterAnswering: e.target.checked })}
+              className="mb-3"
+            />
+
+            {/* NEW: View Responses */}
+            <Form.Group className="mb-3">
+              <Form.Label>View Responses</Form.Label>
+              <Form.Select
+                value={quiz.viewResponses || "ALWAYS"}
+                onChange={(e) => setQuiz({ ...quiz, viewResponses: e.target.value })}
+                style={{ maxWidth: '300px' }}
+              >
+                <option value="ALWAYS">Always</option>
+                <option value="NEVER">Never</option>
+              </Form.Select>
+            </Form.Group>
+
+            {/* NEW: Require Respondus LockDown Browser */}
+            <Form.Check
+              type="checkbox"
+              label="Require Respondus LockDown Browser"
+              checked={quiz.requireRespondusLockDown || false}
+              onChange={(e) => setQuiz({ ...quiz, requireRespondusLockDown: e.target.checked })}
+              className="mb-3"
+            />
+
+            {/* NEW: Required to View Quiz Results */}
+            <Form.Check
+              type="checkbox"
+              label="Required to View Quiz Results"
+              checked={quiz.requiredToViewQuizResults || false}
+              onChange={(e) => setQuiz({ ...quiz, requiredToViewQuizResults: e.target.checked })}
               className="mb-3"
             />
           </div>

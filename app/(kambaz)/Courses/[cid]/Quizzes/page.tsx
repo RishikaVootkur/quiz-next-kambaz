@@ -70,24 +70,28 @@ export default function Quizzes() {
   }, [cid, dispatch]);
 
   const handleAddQuiz = async () => {
-    try {
-      const newQuiz = await client.createQuizForCourse(cid, {
-        title: "Unnamed Quiz",
-        description: "New quiz description",
-        quizType: "GRADED_QUIZ",
-        points: 0,
-        assignmentGroup: "QUIZZES",
-        shuffleAnswers: true,
-        timeLimit: 20,
-        multipleAttempts: false,
-        howManyAttempts: 1,
-        showCorrectAnswers: "IMMEDIATELY",
-        accessCode: "",
-        oneQuestionAtATime: true,
-        webcamRequired: false,
-        lockQuestionsAfterAnswering: false,
-        published: false,
-      });
+  try {
+    const newQuiz = await client.createQuizForCourse(cid, {
+      title: "Unnamed Quiz",
+      description: "New quiz description",
+      quizType: "GRADED_QUIZ",
+      points: 0,
+      assignmentGroup: "QUIZZES",
+      shuffleAnswers: true,
+      timeLimit: 20,
+      multipleAttempts: false,
+      howManyAttempts: 1,
+      showCorrectAnswers: "IMMEDIATELY",
+      accessCode: "",
+      oneQuestionAtATime: true,
+      webcamRequired: false,
+      lockQuestionsAfterAnswering: false,
+      viewResponses: "ALWAYS", // ADD THIS
+      requireRespondusLockDown: false, // ADD THIS
+      requiredToViewQuizResults: false, // ADD THIS
+      published: false,
+    });
+    // ... rest of the code
       dispatch(setQuizzes([...quizzes, newQuiz]));
       router.push(`/Courses/${cid}/Quizzes/${newQuiz._id}/edit`);
     } catch (error) {
