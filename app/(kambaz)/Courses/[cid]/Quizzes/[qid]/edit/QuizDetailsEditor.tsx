@@ -71,6 +71,13 @@ export default function QuizDetailsEditor({
 
   return (
     <>
+
+    <style>{`
+      .custom-datetime::-webkit-calendar-picker-indicator {
+        display: none;
+      }
+    `}</style>
+
       <Form>
         {/* Title Input */}
         <Form.Group className="mb-3">
@@ -390,7 +397,11 @@ export default function QuizDetailsEditor({
                     type="datetime-local"
                     value={quiz.dueDate ? new Date(quiz.dueDate).toISOString().slice(0, 16) : ""}
                     onChange={(e) => setQuiz({ ...quiz, dueDate: e.target.value })}
-                  />
+                    style={{
+                        colorScheme: 'light'
+                    }}
+                    className="custom-datetime"
+                    />
                   <span className="input-group-text bg-white border-start-0">
                     <BsCalendar3 />
                   </span>
@@ -406,7 +417,11 @@ export default function QuizDetailsEditor({
                         type="datetime-local"
                         value={quiz.availableDate ? new Date(quiz.availableDate).toISOString().slice(0, 16) : ""}
                         onChange={(e) => setQuiz({ ...quiz, availableDate: e.target.value })}
-                      />
+                        style={{
+                            colorScheme: 'light'
+                        }}
+                        className="custom-datetime"
+                        />
                       <span className="input-group-text bg-white border-start-0">
                         <BsCalendar3 />
                       </span>
@@ -418,10 +433,14 @@ export default function QuizDetailsEditor({
                     <Form.Label className="fw-bold">Until</Form.Label>
                     <div className="input-group">
                       <Form.Control
-                        type="datetime-local"
-                        value={quiz.untilDate ? new Date(quiz.untilDate).toISOString().slice(0, 16) : ""}
-                        onChange={(e) => setQuiz({ ...quiz, untilDate: e.target.value })}
-                      />
+                            type="datetime-local"
+                            value={quiz.untilDate ? new Date(quiz.untilDate).toISOString().slice(0, 16) : ""}
+                            onChange={(e) => setQuiz({ ...quiz, untilDate: e.target.value })}
+                            style={{
+                                colorScheme: 'light'
+                            }}
+                            className="custom-datetime"
+                            />
                       <span className="input-group-text bg-white border-start-0">
                         <BsCalendar3 />
                       </span>
@@ -431,10 +450,10 @@ export default function QuizDetailsEditor({
               </div>
             </div>
 
-            <div className="mt-3 text-center border-top pt-3" style={{ borderStyle: 'dashed' }}>
+            <div className="mt-3 text-center border-top py-3 bg-light" style={{ borderStyle: 'dashed', borderColor: '#dee2e6'}}>
               <Button 
                 variant="link" 
-                className="text-muted text-decoration-none"
+                className="text-muted text-decoration-none "
                 onClick={() => setShowAssignModal(true)}
               >
                 + Add
@@ -471,7 +490,6 @@ export default function QuizDetailsEditor({
         </div>
       </Form>
 
-      {/* Add Assignee Modal */}
       <Modal show={showAssignModal} onHide={() => setShowAssignModal(false)} centered>
         <Modal.Header closeButton>
           <Modal.Title>Add Assignees</Modal.Title>
