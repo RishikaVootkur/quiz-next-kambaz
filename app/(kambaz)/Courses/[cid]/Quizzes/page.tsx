@@ -24,11 +24,18 @@ export default function Quizzes() {
   const [studentView, setStudentView] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [sortBy, setSortBy] = useState("default");
+  const [quizAttempts, setQuizAttempts] = useState<any>({});
   
   const isFaculty = currentUser?.role === "FACULTY";
   const isAdmin = currentUser?.role === "ADMIN";
+  const isStudent = !isFaculty && !isAdmin;
   const canManageQuizzes = isFaculty || isAdmin;
   
+  // Calculate points from questions
+  const calculatePoints = (quiz: any) => {
+    return quiz.questions?.reduce((sum: number, q: any) => sum + (q.points || 0), 0) || 0;
+  };
+
   let displayQuizzes = quizzes
     .filter((quiz: any) => quiz.course === cid)
     .filter((quiz: any) => 
@@ -53,45 +60,61 @@ export default function Quizzes() {
     });
   } else if (sortBy === "points") {
     displayQuizzes = [...displayQuizzes].sort((a: any, b: any) => 
-      (b.points || 0) - (a.points || 0)
+      calculatePoints(b) - calculatePoints(a)
     );
   }
 
   useEffect(() => {
     const fetchQuizzes = async () => {
       try {
-        const quizzes = await client.findQuizzesForCourse(cid);
-        dispatch(setQuizzes(quizzes));
+        const fetchedQuizzes = await client.findQuizzesForCourse(cid);
+        dispatch(setQuizzes(fetchedQuizzes));
+
+        // If student, fetch their attempts for each quiz
+        if (isStudent && currentUser?._id) {
+          const attemptsMap: any = {};
+          for (const quiz of fetchedQuizzes) {
+            try {
+              const latestAttempt = await client.getLatestAttempt(quiz._id);
+              if (latestAttempt && latestAttempt.submittedAt) {
+                attemptsMap[quiz._id] = latestAttempt;
+              }
+            } catch (error) {
+              // No attempt found for this quiz
+            }
+          }
+          setQuizAttempts(attemptsMap);
+        }
       } catch (error) {
         console.error("Error fetching quizzes:", error);
       }
     };
     fetchQuizzes();
-  }, [cid, dispatch]);
+  }, [cid, dispatch, isStudent, currentUser]);
 
   const handleAddQuiz = async () => {
-  try {
-    const newQuiz = await client.createQuizForCourse(cid, {
-      title: "Unnamed Quiz",
-      description: "New quiz description",
-      quizType: "GRADED_QUIZ",
-      points: 0,
-      assignmentGroup: "QUIZZES",
-      shuffleAnswers: true,
-      timeLimit: 20,
-      multipleAttempts: false,
-      howManyAttempts: 1,
-      showCorrectAnswers: "IMMEDIATELY",
-      accessCode: "",
-      oneQuestionAtATime: true,
-      webcamRequired: false,
-      lockQuestionsAfterAnswering: false,
-      viewResponses: "ALWAYS", // ADD THIS
-      requireRespondusLockDown: false, // ADD THIS
-      requiredToViewQuizResults: false, // ADD THIS
-      published: false,
-    });
-    // ... rest of the code
+    try {
+      const newQuiz = await client.createQuizForCourse(cid, {
+        title: "Unnamed Quiz",
+        description: "New quiz description",
+        quizType: "GRADED_QUIZ",
+        points: 0,
+        assignmentGroup: "QUIZZES",
+        shuffleAnswers: true,
+        timeLimit: 20,
+        multipleAttempts: false,
+        howManyAttempts: 1,
+        showCorrectAnswers: "IMMEDIATELY",
+        accessCode: "",
+        oneQuestionAtATime: true,
+        webcamRequired: false,
+        lockQuestionsAfterAnswering: false,
+        viewResponses: "ALWAYS",
+        requireRespondusLockDown: false,
+        requiredToViewQuizResults: false,
+        published: false,
+        questions: [], // Initialize with empty questions array
+      });
       dispatch(setQuizzes([...quizzes, newQuiz]));
       router.push(`/Courses/${cid}/Quizzes/${newQuiz._id}/edit`);
     } catch (error) {
@@ -286,6 +309,15 @@ export default function Quizzes() {
             {!collapsed && displayQuizzes.map((quiz: any) => {
               const quizAvailable = isQuizAvailable(quiz);
               const availabilityStatus = getAvailabilityStatus(quiz);
+              const points = calculatePoints(quiz);
+              const questionCount = quiz.questions?.length || 0;
+              
+              // Get student's attempt for this quiz
+              const attempt = quizAttempts[quiz._id];
+              const maxScore = points;
+              const percentage = attempt && maxScore > 0 
+                ? ((attempt.score / maxScore) * 100).toFixed(1)
+                : null;
               
               return (
                 <li 
@@ -328,9 +360,26 @@ export default function Quizzes() {
                           {" | "}
                           <strong>Due</strong> {formatDue(quiz)}
                           {" | "}
-                          {quiz.points} pts
+                          {points} pts
                           {" | "}
-                          {quiz.questions?.length || 0} Questions
+                          {questionCount} {questionCount === 1 ? 'Question' : 'Questions'}
+                          {/* Show score ratio for students who completed the quiz */}
+                          {isStudent && attempt && (
+                            <>
+                              {" | "}
+                              <span 
+                                className={
+                                  percentage && parseFloat(percentage) >= 70 
+                                    ? 'text-success fw-bold' 
+                                    : percentage && parseFloat(percentage) >= 50
+                                    ? 'text-warning fw-bold'
+                                    : 'text-danger fw-bold'
+                                }
+                              >
+                                {attempt.score}/{maxScore}
+                              </span>
+                            </>
+                          )}
                         </span>
                       </div>
                     </div>

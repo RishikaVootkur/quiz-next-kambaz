@@ -1,17 +1,19 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useParams, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button, Form, Badge, Modal } from "react-bootstrap";
-import { BsThreeDotsVertical, BsTypeBold, BsTypeItalic, BsTypeUnderline } from "react-icons/bs";
+import { BsTypeBold, BsTypeItalic, BsTypeUnderline } from "react-icons/bs";
 import * as client from "../../client";
 
 export default function QuizDetailsEditor({ 
   quiz, 
-  setQuiz 
+  setQuiz,
+  onUnsavedChanges 
 }: { 
   quiz: any; 
   setQuiz: (quiz: any) => void;
+  onUnsavedChanges?: (hasChanges: boolean) => void;
 }) {
   const params = useParams();
   const router = useRouter();
@@ -20,19 +22,71 @@ export default function QuizDetailsEditor({
 
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assignees, setAssignees] = useState<string[]>(["Everyone"]);
-  const [fontSize, setFontSize] = useState("12pt");
-  const [textFormat, setTextFormat] = useState("Paragraph");
+  const [initialQuiz, setInitialQuiz] = useState<any>(null);
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
+
+  const applyDescriptionFormat = (formatType: 'bold' | 'italic' | 'underline') => {
+    const textarea = descriptionRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = (quiz.description || '').substring(start, end);
+    
+    if (!selectedText) {
+      alert('Please select text first');
+      return;
+    }
+
+    let formattedText = '';
+    
+    switch (formatType) {
+      case 'bold':
+        formattedText = `<strong>${selectedText}</strong>`;
+        break;
+      case 'italic':
+        formattedText = `<em>${selectedText}</em>`;
+        break;
+      case 'underline':
+        formattedText = `<u>${selectedText}</u>`;
+        break;
+    }
+
+    const newText = 
+      (quiz.description || '').substring(0, start) + 
+      formattedText + 
+      (quiz.description || '').substring(end);
+    
+    setQuiz({ ...quiz, description: newText });
+
+    setTimeout(() => {
+      textarea.focus();
+      const newPosition = start + formattedText.length;
+      textarea.setSelectionRange(newPosition, newPosition);
+    }, 10);
+  };
 
   useEffect(() => {
     if (quiz?.assignTo && quiz.assignTo.length > 0) {
       setAssignees(quiz.assignTo);
     }
-  }, [quiz]);
+    if (!initialQuiz) {
+      setInitialQuiz(JSON.parse(JSON.stringify(quiz)));
+    }
+  }, [quiz, initialQuiz]);
+
+  useEffect(() => {
+    if (initialQuiz && onUnsavedChanges) {
+      const hasChanges = JSON.stringify(quiz) !== JSON.stringify(initialQuiz);
+      onUnsavedChanges(hasChanges);
+    }
+  }, [quiz, initialQuiz, onUnsavedChanges]);
 
   const handleSave = async () => {
     try {
       const updatedQuiz = { ...quiz, assignTo: assignees };
       await client.updateQuiz(updatedQuiz);
+      setInitialQuiz(JSON.parse(JSON.stringify(updatedQuiz)));
       router.push(`/Courses/${cid}/Quizzes/${qid}`);
     } catch (error) {
       console.error("Error saving quiz:", error);
@@ -44,6 +98,7 @@ export default function QuizDetailsEditor({
       const updatedQuiz = { ...quiz, published: true, assignTo: assignees };
       await client.updateQuiz(updatedQuiz);
       await client.publishQuiz(qid);
+      setInitialQuiz(JSON.parse(JSON.stringify(updatedQuiz)));
       router.push(`/Courses/${cid}/Quizzes`);
     } catch (error) {
       console.error("Error saving and publishing quiz:", error);
@@ -87,94 +142,75 @@ export default function QuizDetailsEditor({
         <Form.Group className="mb-4">
           <Form.Label className="fw-normal">Quiz Instructions:</Form.Label>
           
-          {/* Menu bar */}
-          <div className="border border-bottom-0 p-2 bg-light d-flex align-items-center gap-3">
-            <span className="text-muted small">Edit</span>
-            <span className="text-muted small">View</span>
-            <span className="text-muted small">Insert</span>
-            <span className="text-muted small">Format</span>
-            <span className="text-muted small">Tools</span>
-            <span className="text-muted small">Table</span>
-            
-            <div className="ms-auto">
-              <span className="text-success fw-bold">100%</span>
-            </div>
-          </div>
-
-          {/* Formatting toolbar */}
-          <div className="border border-top-0 border-bottom-0 p-2 bg-white d-flex align-items-center gap-2">
-            <Form.Select 
+          {/* Formatting Toolbar */}
+          <div className="border border-bottom-0 rounded-top p-2 bg-light d-flex align-items-center gap-2">
+            <Button 
+              variant="light" 
               size="sm" 
-              value={fontSize}
-              onChange={(e) => setFontSize(e.target.value)}
-              style={{ width: '80px' }}
+              className="border px-3" 
+              title="Bold (select text first)"
+              onClick={() => applyDescriptionFormat('bold')}
             >
-              <option value="8pt">8pt</option>
-              <option value="10pt">10pt</option>
-              <option value="12pt">12pt</option>
-              <option value="14pt">14pt</option>
-              <option value="16pt">16pt</option>
-              <option value="18pt">18pt</option>
-              <option value="24pt">24pt</option>
-              <option value="36pt">36pt</option>
-            </Form.Select>
-            
-            <Form.Select 
-              size="sm"
-              value={textFormat}
-              onChange={(e) => setTextFormat(e.target.value)}
-              style={{ width: '140px' }}
+              <BsTypeBold /> <strong>Bold</strong>
+            </Button>
+            <Button 
+              variant="light" 
+              size="sm" 
+              className="border px-3" 
+              title="Italic (select text first)"
+              onClick={() => applyDescriptionFormat('italic')}
             >
-              <option value="Paragraph">Paragraph</option>
-              <option value="Heading 1">Heading 1</option>
-              <option value="Heading 2">Heading 2</option>
-              <option value="Heading 3">Heading 3</option>
-              <option value="Heading 4">Heading 4</option>
-              <option value="Preformatted">Preformatted</option>
-            </Form.Select>
-            
-            <div className="vr"></div>
-            
-            <Button variant="light" size="sm" className="border-0 p-1 px-2" title="Bold">
-              <BsTypeBold className="fs-6" />
+              <BsTypeItalic /> <em>Italic</em>
             </Button>
-            <Button variant="light" size="sm" className="border-0 p-1 px-2" title="Italic">
-              <BsTypeItalic className="fs-6" />
+            <Button 
+              variant="light" 
+              size="sm" 
+              className="border px-3" 
+              title="Underline (select text first)"
+              onClick={() => applyDescriptionFormat('underline')}
+            >
+              <BsTypeUnderline /> <u>Underline</u>
             </Button>
-            <Button variant="light" size="sm" className="border-0 p-1 px-2" title="Underline">
-              <BsTypeUnderline className="fs-6" />
-            </Button>
-            
-            <div className="vr"></div>
-            
-            <span className="text-muted small">A</span>
-            <span className="text-muted small">✏️</span>
-            <span className="text-muted small">T²</span>
-            
-            <div className="vr"></div>
-            
-            <BsThreeDotsVertical className="text-muted" />
+            <small className="text-muted ms-3">💡 Select text, then click a button to format</small>
           </div>
 
           {/* Text area */}
           <Form.Control
+            ref={descriptionRef}
             as="textarea"
             rows={6}
             value={quiz.description || ""}
             onChange={(e) => setQuiz({ ...quiz, description: e.target.value })}
             className="border-top-0 rounded-0"
             placeholder="Enter quiz instructions..."
-            style={{ fontSize: fontSize, fontFamily: 'Arial, sans-serif' }}
+            style={{ fontFamily: 'Arial, sans-serif', fontSize: '14px' }}
           />
           
-          {/* Bottom toolbar */}
-          <div className="border border-top-0 p-2 bg-white d-flex justify-content-end align-items-center rounded-bottom gap-3">
-            <span className="text-danger small">{wordCount} words</span>
-            <span className="text-muted small">&lt;/&gt;</span>
-            <Button variant="link" size="sm" className="text-danger p-0 text-decoration-none">
-              ✏️
-            </Button>
-            <BsThreeDotsVertical className="text-muted" style={{ cursor: 'pointer' }} />
+          {/* Preview & Word Count */}
+          <div className="border border-top-0 rounded-bottom p-2 bg-light d-flex justify-content-between align-items-start">
+            <div className="flex-grow-1">
+              <small className="text-muted d-block mb-1">Preview:</small>
+              <div dangerouslySetInnerHTML={{ __html: quiz.description || '<em>No instructions yet</em>' }} />
+            </div>
+            <span className="text-muted small">{wordCount} words</span>
+          </div>
+        </Form.Group>
+
+        {/* Points Section - NEW */}
+        <Form.Group className="mb-3 row">
+          <div className="col-sm-2"></div>
+          <Form.Label className="col-sm-2 col-form-label text-end">Points</Form.Label>
+          <div className="col-sm-8">
+            <Form.Control
+              type="number"
+              value={quiz.questions?.reduce((sum: number, q: any) => sum + (q.points || 0), 0) || 0}
+              disabled
+              readOnly
+              className="bg-light"
+            />
+            <Form.Text className="text-muted">
+              Total points are calculated from all questions
+            </Form.Text>
           </div>
         </Form.Group>
 
@@ -249,23 +285,30 @@ export default function QuizDetailsEditor({
               )}
             </div>
 
-            <Form.Check
-              type="checkbox"
-              label="Allow Multiple Attempts"
-              checked={quiz.multipleAttempts}
-              onChange={(e) => setQuiz({ ...quiz, multipleAttempts: e.target.checked })}
-              className="mb-3"
-            />
+            <div className="mb-3">
+              <Form.Check
+                type="checkbox"
+                label="Allow Multiple Attempts"
+                checked={quiz.multipleAttempts}
+                onChange={(e) => setQuiz({ ...quiz, multipleAttempts: e.target.checked })}
+              />
+            </div>
 
             {quiz.multipleAttempts && (
               <Form.Group className="mb-3 ms-4">
                 <Form.Label>How Many Attempts</Form.Label>
-                <Form.Control
-                  type="number"
-                  value={quiz.howManyAttempts || 1}
-                  onChange={(e) => setQuiz({ ...quiz, howManyAttempts: parseInt(e.target.value) || 1 })}
-                  style={{ width: '100px' }}
-                />
+                <div className="d-flex align-items-center gap-2">
+                  <Form.Control
+                    type="number"
+                    value={quiz.howManyAttempts || 1}
+                    onChange={(e) => setQuiz({ ...quiz, howManyAttempts: parseInt(e.target.value) || 1 })}
+                    style={{ width: '100px' }}
+                    min="1"
+                  />
+                  <Form.Text className="text-muted">
+                    (Enter a number or leave blank for unlimited)
+                  </Form.Text>
+                </div>
               </Form.Group>
             )}
 
@@ -326,7 +369,7 @@ export default function QuizDetailsEditor({
               className="mb-3"
             />
 
-            {/* NEW: View Responses */}
+            {/* View Responses */}
             <Form.Group className="mb-3">
               <Form.Label>View Responses</Form.Label>
               <Form.Select
@@ -339,7 +382,7 @@ export default function QuizDetailsEditor({
               </Form.Select>
             </Form.Group>
 
-            {/* NEW: Require Respondus LockDown Browser */}
+            {/* Require Respondus LockDown Browser */}
             <Form.Check
               type="checkbox"
               label="Require Respondus LockDown Browser"
@@ -348,7 +391,7 @@ export default function QuizDetailsEditor({
               className="mb-3"
             />
 
-            {/* NEW: Required to View Quiz Results */}
+            {/* Required to View Quiz Results */}
             <Form.Check
               type="checkbox"
               label="Required to View Quiz Results"

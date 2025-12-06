@@ -1,33 +1,47 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button, Form } from "react-bootstrap";
 import { BsTypeBold, BsTypeItalic, BsTypeUnderline, BsPencil, BsTrash } from "react-icons/bs";
+import * as client from "../../client";
+import { useParams } from "next/navigation";
 
 export default function QuestionsEditor({ 
   quiz, 
-  setQuiz 
+  setQuiz,
+  onUnsavedChanges 
 }: { 
   quiz: any; 
   setQuiz: (quiz: any) => void;
+  onUnsavedChanges?: (hasChanges: boolean) => void;
 }) {
+  const params = useParams();
+  const qid = params.qid as string;
+  
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
   const [originalQuestion, setOriginalQuestion] = useState<any>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  useEffect(() => {
+    if (onUnsavedChanges) {
+      onUnsavedChanges(hasUnsavedChanges);
+    }
+  }, [hasUnsavedChanges, onUnsavedChanges]);
 
   const handleAddQuestion = () => {
     const newQuestion: any = {
       _id: `temp-${Date.now()}`,
       type: "MULTIPLE_CHOICE",
-      title: "Easy Question",
-      points: 4,
-      question: "How much is 2 + 2?",
+      title: "New Question",
+      points: 1,
+      question: "Enter your question here",
       choices: [
-        { text: "4", isCorrect: false },
-        { text: "3", isCorrect: false },
-        { text: "5", isCorrect: true },
-        { text: "7", isCorrect: false },
+        { text: "Option 1", isCorrect: true },
+        { text: "Option 2", isCorrect: false },
+        { text: "Option 3", isCorrect: false },
+        { text: "Option 4", isCorrect: false },
       ],
-      isNew: true, // Mark as new question
+      isNew: true,
     };
 
     setQuiz({
@@ -35,17 +49,18 @@ export default function QuestionsEditor({
       questions: [...(quiz.questions || []), newQuestion],
     });
     setEditingQuestionId(newQuestion._id);
-    setOriginalQuestion(null); // No original for new questions
+    setOriginalQuestion(null);
+    setHasUnsavedChanges(true);
   };
 
   const handleEditQuestion = (question: any) => {
-    setOriginalQuestion({ ...question }); // Save original state
+    setOriginalQuestion({ ...question });
     setEditingQuestionId(question._id);
   };
 
   const handleSaveQuestion = (question: any) => {
     const updatedQuestion = { ...question };
-    delete updatedQuestion.isNew; // Remove the isNew flag when saving
+    delete updatedQuestion.isNew;
     
     const updatedQuestions = quiz.questions.map((q: any) =>
       q._id === question._id ? updatedQuestion : q
@@ -53,19 +68,18 @@ export default function QuestionsEditor({
     setQuiz({ ...quiz, questions: updatedQuestions });
     setEditingQuestionId(null);
     setOriginalQuestion(null);
+    setHasUnsavedChanges(true);
   };
 
   const handleCancelEdit = (questionId: string) => {
     const question = quiz.questions.find((q: any) => q._id === questionId);
     
-    // If it's a new question that was never saved, delete it
     if (question?.isNew) {
       setQuiz({
         ...quiz,
         questions: quiz.questions.filter((q: any) => q._id !== questionId),
       });
     } else if (originalQuestion) {
-      // If it's an existing question, restore the original state
       const updatedQuestions = quiz.questions.map((q: any) =>
         q._id === questionId ? originalQuestion : q
       );
@@ -82,6 +96,24 @@ export default function QuestionsEditor({
         ...quiz,
         questions: quiz.questions.filter((q: any) => q._id !== questionId),
       });
+      setHasUnsavedChanges(true);
+    }
+  };
+
+  const handleSaveAll = async () => {
+    try {
+      await client.updateQuiz(quiz);
+      setHasUnsavedChanges(false);
+      alert("All changes saved successfully!");
+    } catch (error) {
+      console.error("Error saving questions:", error);
+      alert("Failed to save questions. Please try again.");
+    }
+  };
+
+  const handleCancelAll = () => {
+    if (window.confirm("Are you sure you want to discard all unsaved changes?")) {
+      window.location.reload();
     }
   };
 
@@ -93,9 +125,21 @@ export default function QuestionsEditor({
         <>
           <div className="d-flex justify-content-between align-items-center mb-4">
             <h5>Total Points: {totalPoints}</h5>
-            <Button variant="danger" onClick={handleAddQuestion}>
-              + New Question
-            </Button>
+            <div className="d-flex gap-2">
+              {hasUnsavedChanges && (
+                <>
+                  <Button variant="light" className="border" onClick={handleCancelAll}>
+                    Cancel Changes
+                  </Button>
+                  <Button variant="success" onClick={handleSaveAll}>
+                    Save All Questions
+                  </Button>
+                </>
+              )}
+              <Button variant="danger" onClick={handleAddQuestion}>
+                + New Question
+              </Button>
+            </div>
           </div>
 
           {(!quiz.questions || quiz.questions.length === 0) && (
@@ -118,8 +162,6 @@ export default function QuestionsEditor({
             ) : !editingQuestionId ? (
               <div 
                 className="border rounded p-3 mb-3 bg-white"
-                style={{ cursor: 'pointer' }}
-                onClick={() => handleEditQuestion(question)}
               >
                 <div className="d-flex justify-content-between align-items-start">
                   <div className="flex-grow-1">
@@ -136,11 +178,21 @@ export default function QuestionsEditor({
                     <Button
                       variant="link"
                       size="sm"
+                      className="text-primary p-0"
+                      onClick={() => handleEditQuestion(question)}
+                      title="Edit"
+                    >
+                      <BsPencil size={18} />
+                    </Button>
+                    <Button
+                      variant="link"
+                      size="sm"
                       className="text-danger p-0"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDeleteQuestion(question._id);
                       }}
+                      title="Delete"
                     >
                       <BsTrash size={18} />
                     </Button>
@@ -165,8 +217,6 @@ function QuestionEditor({
   onCancel: () => void;
 }) {
   const [question, setQuestion] = useState(initialQuestion);
-  const [fontSize, setFontSize] = useState("12pt");
-  const [textFormat, setTextFormat] = useState("Paragraph");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const applyFormat = (formatType: 'bold' | 'italic' | 'underline') => {
@@ -183,15 +233,19 @@ function QuestionEditor({
     }
 
     let formattedText = '';
+    let tag = '';
     
     switch (formatType) {
       case 'bold':
-        formattedText = `<b>${selectedText}</b>`;
+        tag = 'strong';
+        formattedText = `<strong>${selectedText}</strong>`;
         break;
       case 'italic':
-        formattedText = `<i>${selectedText}</i>`;
+        tag = 'em';
+        formattedText = `<em>${selectedText}</em>`;
         break;
       case 'underline':
+        tag = 'u';
         formattedText = `<u>${selectedText}</u>`;
         break;
     }
@@ -203,9 +257,11 @@ function QuestionEditor({
     
     setQuestion({ ...question, question: newText });
 
+    // Set cursor position after formatted text
     setTimeout(() => {
       textarea.focus();
-      textarea.setSelectionRange(start + formattedText.length, start + formattedText.length);
+      const newPosition = start + formattedText.length;
+      textarea.setSelectionRange(newPosition, newPosition);
     }, 10);
   };
 
@@ -325,93 +381,55 @@ function QuestionEditor({
         <Form.Group className="mb-4">
           <Form.Label style={{ fontWeight: '600', marginBottom: '0.5rem' }}>Question:</Form.Label>
           
-          <div className="border border-bottom-0 p-2 bg-light d-flex align-items-center gap-3" style={{ fontSize: '0.85rem' }}>
-            <span className="text-muted">Edit</span>
-            <span className="text-muted">View</span>
-            <span className="text-muted">Insert</span>
-            <span className="text-muted">Format</span>
-            <span className="text-muted">Tools</span>
-            <span className="text-muted">Table</span>
-          </div>
-
-          <div className="border border-top-0 border-bottom-0 p-2 bg-white d-flex align-items-center gap-2 flex-wrap">
-            <Form.Select 
-              size="sm" 
-              value={fontSize}
-              onChange={(e) => setFontSize(e.target.value)}
-              style={{ width: '75px' }}
-            >
-              <option value="8pt">8pt</option>
-              <option value="10pt">10pt</option>
-              <option value="12pt">12pt</option>
-              <option value="14pt">14pt</option>
-              <option value="16pt">16pt</option>
-              <option value="18pt">18pt</option>
-            </Form.Select>
-            
-            <Form.Select 
-              size="sm"
-              value={textFormat}
-              onChange={(e) => setTextFormat(e.target.value)}
-              style={{ width: '110px' }}
-            >
-              <option value="Paragraph">Paragraph</option>
-              <option value="Heading 1">Heading 1</option>
-              <option value="Heading 2">Heading 2</option>
-            </Form.Select>
-            
-            <div className="vr"></div>
-            
+          {/* Formatting Toolbar */}
+          <div className="border border-bottom-0 rounded-top p-2 bg-light d-flex align-items-center gap-2">
             <Button 
               variant="light" 
               size="sm" 
-              className="border-0 p-1 px-2" 
-              title="Bold"
+              className="border px-3" 
+              title="Bold (select text first)"
               onClick={() => applyFormat('bold')}
             >
-              <BsTypeBold />
+              <BsTypeBold /> <strong>Bold</strong>
             </Button>
             <Button 
               variant="light" 
               size="sm" 
-              className="border-0 p-1 px-2" 
-              title="Italic"
+              className="border px-3" 
+              title="Italic (select text first)"
               onClick={() => applyFormat('italic')}
             >
-              <BsTypeItalic />
+              <BsTypeItalic /> <em>Italic</em>
             </Button>
             <Button 
               variant="light" 
               size="sm" 
-              className="border-0 p-1 px-2" 
-              title="Underline"
+              className="border px-3" 
+              title="Underline (select text first)"
               onClick={() => applyFormat('underline')}
             >
-              <BsTypeUnderline />
+              <BsTypeUnderline /> <u>Underline</u>
             </Button>
-            
-            <div className="vr"></div>
-            
-            <Button variant="light" size="sm" className="border-0 p-1 px-2">
-              <span style={{ fontWeight: 'bold' }}>A</span>
-            </Button>
-            <Button variant="light" size="sm" className="border-0 p-1 px-2">✏️</Button>
-            <Button variant="light" size="sm" className="border-0 p-1 px-2">T²</Button>
-            
-            <div className="vr"></div>
-            
-            <Button variant="light" size="sm" className="border-0 p-1 px-2">⋮</Button>
+            <small className="text-muted ms-3">💡 Select text, then click a button to format</small>
           </div>
 
+          {/* Question Text Area */}
           <Form.Control
             ref={textareaRef}
             as="textarea"
-            rows={3}
+            rows={4}
             value={question.question}
             onChange={(e) => setQuestion({ ...question, question: e.target.value })}
             className="border-top-0 rounded-0 rounded-bottom"
-            style={{ fontSize: fontSize }}
+            placeholder="Type your question here..."
+            style={{ fontFamily: 'Arial, sans-serif', fontSize: '14px' }}
           />
+          
+          {/* Preview */}
+          <div className="mt-2 p-2 bg-light border rounded">
+            <small className="text-muted d-block mb-1">Preview:</small>
+            <div dangerouslySetInnerHTML={{ __html: question.question }} />
+          </div>
         </Form.Group>
 
         <Form.Group>
@@ -448,25 +466,15 @@ function QuestionEditor({
                   </div>
                   <div className="col-auto">
                     {question.choices.length > 2 && (
-                      <div className="d-flex gap-2">
-                        <button
-                          type="button"
-                          className="btn btn-link btn-sm p-0"
-                          style={{ fontSize: '1.2rem', textDecoration: 'none', color: '#0d6efd' }}
-                          title="Edit"
-                        >
-                          <BsPencil />
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-link btn-sm p-0"
-                          style={{ fontSize: '1.2rem', textDecoration: 'none', color: '#dc3545' }}
-                          onClick={() => handleRemoveChoice(index)}
-                          title="Delete"
-                        >
-                          <BsTrash />
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-link btn-sm p-0"
+                        style={{ fontSize: '1.2rem', textDecoration: 'none', color: '#dc3545' }}
+                        onClick={() => handleRemoveChoice(index)}
+                        title="Delete"
+                      >
+                        <BsTrash />
+                      </button>
                     )}
                   </div>
                 </div>

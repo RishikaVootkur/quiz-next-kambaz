@@ -2,9 +2,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Nav, Tab, Badge, Dropdown, Button } from "react-bootstrap";
+import { Nav, Tab, Badge, Dropdown } from "react-bootstrap";
 import { BsThreeDotsVertical } from "react-icons/bs";
-import { FaBan, FaCheckCircle } from "react-icons/fa";
+import { FaBan } from "react-icons/fa";
 import * as client from "../../client";
 import QuizDetailsEditor from "./QuizDetailsEditor";
 import QuestionsEditor from "./QuestionsEditor";
@@ -29,20 +29,6 @@ export default function QuizEditor() {
     };
     fetchQuiz();
   }, [qid]);
-
-  const handlePublishToggle = async () => {
-    try {
-      if (quiz.published) {
-        await client.unpublishQuiz(qid);
-        setQuiz({ ...quiz, published: false });
-      } else {
-        await client.publishQuiz(qid);
-        setQuiz({ ...quiz, published: true });
-      }
-    } catch (error) {
-      console.error("Error toggling publish status:", error);
-    }
-  };
 
   const handleDuplicate = async () => {
     try {
@@ -79,27 +65,12 @@ export default function QuizEditor() {
       {/* Header with Points and Status */}
       <div className="d-flex justify-content-end align-items-center mb-3 pe-4 gap-3 pt-3">
         <span>Points {totalPoints}</span>
-        
-        {/* Clickable Publish/Unpublish Badge Button */}
-        <Badge 
-          bg="light" 
-          text="dark" 
-          className="px-3 py-2 border"
-          style={{ cursor: 'pointer' }}
-          onClick={handlePublishToggle}
-        >
-          {quiz.published ? (
-            <>
-              <FaCheckCircle className="me-2 text-success" />
-              Published
-            </>
-          ) : (
-            <>
-              <FaBan className="me-2" />
-              Not Published
-            </>
-          )}
-        </Badge>
+        {!quiz.published && (
+          <Badge bg="light" text="dark" className="px-3 py-2 border">
+            <FaBan className="me-2" />
+            Not Published
+          </Badge>
+        )}
         
         {/* Three Dots Menu */}
         <Dropdown>
@@ -116,9 +87,6 @@ export default function QuizEditor() {
             </Dropdown.Item>
             <Dropdown.Item onClick={() => router.push(`/Courses/${cid}/Quizzes/${qid}/preview`)}>
               Preview
-            </Dropdown.Item>
-            <Dropdown.Item onClick={handlePublishToggle}>
-              {quiz.published ? "Unpublish" : "Publish"}
             </Dropdown.Item>
             <Dropdown.Item onClick={handleDuplicate}>
               Duplicate

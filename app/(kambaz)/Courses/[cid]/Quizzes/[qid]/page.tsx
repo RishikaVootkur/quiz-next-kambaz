@@ -39,6 +39,8 @@ export default function QuizDetails() {
             
             const attempts = await client.getAttemptsForQuiz(qid);
             setAttemptCount(attempts.length);
+            
+            console.log(`📊 Loaded ${attempts.length} attempts for quiz ${qid}`);
           } catch (error) {
             console.error("No attempts found");
             setLatestAttempt(null);
@@ -50,6 +52,17 @@ export default function QuizDetails() {
       }
     };
     fetchQuiz();
+    
+    // Re-fetch when page becomes visible (user returns from another page)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('🔄 Page visible - refreshing attempts');
+        fetchQuiz();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [qid, isStudent]);
 
   if (!quiz) return <div>Loading...</div>;
@@ -104,11 +117,17 @@ export default function QuizDetails() {
   };
 
   const totalPoints = quiz.questions?.reduce((sum: number, q: any) => sum + (q.points || 0), 0) || 0;
+  const questionCount = quiz.questions?.length || 0;
 
   return (
     <div id="wd-quiz-details" className="p-4">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2>{quiz.title}</h2>
+      <div className="d-flex justify-content-between align-items-start mb-4">
+        <div>
+          <h2>{quiz.title}</h2>
+          <p className="text-muted mb-0">
+            {questionCount} {questionCount === 1 ? 'Question' : 'Questions'} | {totalPoints} Points
+          </p>
+        </div>
         <div className="d-flex gap-2">
           {/* Faculty/Admin Buttons */}
           {(isFaculty || isAdmin) && (
@@ -143,28 +162,46 @@ export default function QuizDetails() {
         </div>
       </div>
 
-              {/* Student's Last Attempt Score */}
-        {isStudent && latestAttempt && latestAttempt.submittedAt && (
-          (() => {
-            // Calculate correct total points from quiz questions
-            const totalPoints = quiz.questions?.reduce((sum: number, q: any) => sum + (q.points || 0), 0) || 0;
-            const maxScore = totalPoints > 0 ? totalPoints : latestAttempt.maxScore;
-            const percentage = maxScore > 0 ? ((latestAttempt.score / maxScore) * 100).toFixed(2) : "0.00";
-            
+      {/* Student's Last Attempt Score */}
+      {isStudent && latestAttempt && latestAttempt.submittedAt && (
+        (() => {
+          // Calculate correct total points from quiz questions
+          const totalPoints = quiz.questions?.reduce((sum: number, q: any) => sum + (q.points || 0), 0) || 0;
+          const maxScore = totalPoints > 0 ? totalPoints : latestAttempt.maxScore;
+          const percentage = maxScore > 0 ? ((latestAttempt.score / maxScore) * 100).toFixed(2) : "0.00";
+          
+          // Determine if we should show the score
+          const isLastAttempt = !quiz.multipleAttempts || attemptCount >= quiz.howManyAttempts;
+          const showScore = isLastAttempt || quiz.showCorrectAnswers === "IMMEDIATELY";
+          
+          // Only show score if it's the last attempt OR if quiz settings allow immediate viewing
+          if (!showScore) {
             return (
               <Alert variant="info" className="mb-4">
-                <strong>Your Last Attempt:</strong> {latestAttempt.score} / {maxScore} points ({percentage}%)
-                <br />
+                <h5 className="mb-2">Quiz Submitted</h5>
                 <small>Submitted: {new Date(latestAttempt.submittedAt).toLocaleString()}</small>
-                {canTakeQuiz() && quiz.multipleAttempts && (
-                  <div className="mt-2">
-                    <small>You have {quiz.howManyAttempts - attemptCount} attempt(s) remaining.</small>
-                  </div>
-                )}
+                <div className="mt-2">
+                  <small>You have {quiz.howManyAttempts - attemptCount} attempt(s) remaining.</small>
+                  <br />
+                  <small className="text-muted">Your score will be shown after you complete all attempts.</small>
+                </div>
               </Alert>
             );
-          })()
-        )}
+          }
+          
+          return (
+            <Alert variant="info" className="mb-4">
+              <h5 className="mb-2">Your Last Score: {latestAttempt.score} / {maxScore} points ({percentage}%)</h5>
+              <small>Submitted: {new Date(latestAttempt.submittedAt).toLocaleString()}</small>
+              {canTakeQuiz() && quiz.multipleAttempts && (
+                <div className="mt-2">
+                  <small>You have {quiz.howManyAttempts - attemptCount} attempt(s) remaining.</small>
+                </div>
+              )}
+            </Alert>
+          );
+        })()
+      )}
 
       <div className="card">
         <div className="card-body">

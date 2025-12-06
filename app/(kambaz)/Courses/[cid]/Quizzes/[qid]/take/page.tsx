@@ -21,10 +21,74 @@ export default function TakeQuiz() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [showSidebar, setShowSidebar] = useState(true);
   const [startTime] = useState(new Date());
+  const [redirectCountdown, setRedirectCountdown] = useState(5);
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+  const [timerExpired, setTimerExpired] = useState(false);
 
   const { currentUser } = useSelector((state: RootState) => state.accountReducer);
   const isFaculty = currentUser?.role === "FACULTY";
   const isAdmin = currentUser?.role === "ADMIN";
+
+  // Auto-redirect countdown after submission
+  useEffect(() => {
+    if (submitted && redirectCountdown > 0) {
+      const timer = setTimeout(() => {
+        setRedirectCountdown(redirectCountdown - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (submitted && redirectCountdown === 0) {
+      router.push(`/Courses/${cid}/Quizzes`);
+    }
+  }, [submitted, redirectCountdown, router, cid]);
+
+  // Timer initialization
+  useEffect(() => {
+    if (quiz && quiz.timeLimit && timeRemaining === null && attempt && !submitted) {
+      setTimeRemaining(quiz.timeLimit * 60);
+    }
+  }, [quiz, attempt, submitted, timeRemaining]);
+
+  // Timer countdown
+  useEffect(() => {
+    if (timeRemaining !== null && timeRemaining > 0 && !submitted) {
+      const timer = setInterval(() => {
+        setTimeRemaining(prev => {
+          if (prev === null || prev <= 1) {
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      
+      return () => clearInterval(timer);
+    }
+  }, [timeRemaining, submitted]);
+
+  // Auto-submit when timer expires
+  useEffect(() => {
+    if (timeRemaining === 0 && !submitted && !timerExpired && attempt) {
+      setTimerExpired(true);
+      
+      const autoSubmit = async () => {
+        if (isFaculty || isAdmin) return;
+        
+        try {
+          const answersArray = Object.keys(answers).map(questionId => ({
+            questionId,
+            answer: answers[questionId]
+          }));
+
+          const submittedAttempt = await client.submitAttempt(attempt._id, answersArray);
+          setAttempt(submittedAttempt);
+          setSubmitted(true);
+        } catch (error) {
+          console.error("Error auto-submitting quiz:", error);
+        }
+      };
+      
+      autoSubmit();
+    }
+  }, [timeRemaining, submitted, timerExpired, attempt, answers, isFaculty, isAdmin]);
 
   useEffect(() => {
     const initQuiz = async () => {
@@ -38,7 +102,7 @@ export default function TakeQuiz() {
             quizId: qid,
             userId: currentUser._id,
             score: 0,
-            maxScore: quizData.points,
+            maxScore: 0,
             attemptNumber: 1
           });
           return;
@@ -47,18 +111,43 @@ export default function TakeQuiz() {
         const attempts = await client.getAttemptsForQuiz(qid);
         const attemptCount = attempts.length;
 
+        // Check for in-progress attempt FIRST
+        const inProgressAttempt = attempts.find((a: any) => !a.submittedAt);
+        
+        if (inProgressAttempt) {
+          setAttempt(inProgressAttempt);
+          if (inProgressAttempt.answers && Array.isArray(inProgressAttempt.answers)) {
+            const restoredAnswers: any = {};
+            inProgressAttempt.answers.forEach((ans: any) => {
+              restoredAnswers[ans.questionId] = ans.answer;
+            });
+            setAnswers(restoredAnswers);
+          }
+          return;
+        }
+
+        // Check if single attempt and already completed
         if (!quizData.multipleAttempts && attemptCount >= 1) {
           setError("You have already completed this quiz.");
+          setTimeout(() => {
+            router.push(`/Courses/${cid}/Quizzes/${qid}`);
+          }, 2000);
           return;
         }
 
+        // Check if all attempts used
         if (quizData.multipleAttempts && attemptCount >= quizData.howManyAttempts) {
           setError("You have used all your attempts for this quiz.");
+          setTimeout(() => {
+            router.push(`/Courses/${cid}/Quizzes/${qid}`);
+          }, 2000);
           return;
         }
 
+        // Start new attempt
         const newAttempt = await client.startAttempt(qid);
         setAttempt(newAttempt);
+        
       } catch (error: any) {
         console.error("Error initializing quiz:", error);
         if (isFaculty || isAdmin) {
@@ -76,7 +165,7 @@ export default function TakeQuiz() {
       }
     };
     initQuiz();
-  }, [qid, isFaculty, isAdmin, currentUser]);
+  }, [qid, isFaculty, isAdmin, currentUser, router, cid]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -87,6 +176,20 @@ export default function TakeQuiz() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Prevent navigation away
+  useEffect(() => {
+    if (attempt && !submitted && !isFaculty && !isAdmin) {
+      const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+        e.preventDefault();
+        e.returnValue = 'If you leave this page, your current attempt will be lost. Are you sure?';
+        return e.returnValue;
+      };
+
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }
+  }, [attempt, submitted, isFaculty, isAdmin]);
 
   const handleAnswerChange = (questionId: string, answer: any) => {
     setAnswers({ ...answers, [questionId]: answer });
@@ -105,62 +208,64 @@ export default function TakeQuiz() {
   };
 
   const handleSubmit = async () => {
-    if (window.confirm("Are you sure you want to submit this quiz?")) {
-      try {
-        if (isFaculty || isAdmin) {
-          let calculatedScore = 0;
-          
-          quiz.questions.forEach((question: any) => {
-            const userAnswer = answers[question._id];
-            let correct = false;
+    const shouldSubmit = timerExpired || window.confirm("Are you sure you want to submit this quiz?");
+    
+    if (!shouldSubmit) return;
 
-            if (question.type === "MULTIPLE_CHOICE") {
-              const correctChoice = question.choices.find((c: any) => c.isCorrect);
-              correct = userAnswer === correctChoice?.text;
-            } else if (question.type === "TRUE_FALSE") {
-              correct = userAnswer === question.correctAnswer;
-            } else if (question.type === "FILL_BLANK") {
-              const answerText = question.caseSensitive 
-                ? userAnswer 
-                : userAnswer?.toLowerCase();
-              correct = question.possibleAnswers.some((possible: string) => {
-                const possibleText = question.caseSensitive 
-                  ? possible 
-                  : possible.toLowerCase();
-                return answerText === possibleText;
-              });
-            }
+    try {
+      if (isFaculty || isAdmin) {
+        let calculatedScore = 0;
+        
+        quiz.questions.forEach((question: any) => {
+          const userAnswer = answers[question._id];
+          let correct = false;
 
-            if (correct) {
-              calculatedScore += question.points;
-            }
-          });
+          if (question.type === "MULTIPLE_CHOICE") {
+            const correctChoice = question.choices.find((c: any) => c.isCorrect);
+            correct = userAnswer === correctChoice?.text;
+          } else if (question.type === "TRUE_FALSE") {
+            correct = userAnswer === question.correctAnswer;
+          } else if (question.type === "FILL_BLANK") {
+            const answerText = question.caseSensitive 
+              ? userAnswer 
+              : userAnswer?.toLowerCase();
+            correct = question.possibleAnswers.some((possible: string) => {
+              const possibleText = question.caseSensitive 
+                ? possible 
+                : possible.toLowerCase();
+              return answerText === possibleText;
+            });
+          }
 
-          setAttempt({
-            ...attempt,
-            score: calculatedScore,
-            attemptNumber: 1,
-            answers: quiz.questions.map((q: any) => ({
-              questionId: q._id,
-              isCorrect: false
-            }))
-          });
-          setSubmitted(true);
-          return;
-        }
+          if (correct) {
+            calculatedScore += question.points;
+          }
+        });
 
-        const answersArray = Object.keys(answers).map(questionId => ({
-          questionId,
-          answer: answers[questionId]
-        }));
-
-        const submittedAttempt = await client.submitAttempt(attempt._id, answersArray);
-        setAttempt(submittedAttempt);
+        setAttempt({
+          ...attempt,
+          score: calculatedScore,
+          attemptNumber: 1,
+          answers: quiz.questions.map((q: any) => ({
+            questionId: q._id,
+            isCorrect: false
+          }))
+        });
         setSubmitted(true);
-      } catch (error) {
-        console.error("Error submitting quiz:", error);
-        alert("Error submitting quiz. Please try again.");
+        return;
       }
+
+      const answersArray = Object.keys(answers).map(questionId => ({
+        questionId,
+        answer: answers[questionId]
+      }));
+
+      const submittedAttempt = await client.submitAttempt(attempt._id, answersArray);
+      setAttempt(submittedAttempt);
+      setSubmitted(true);
+    } catch (error) {
+      console.error("Error submitting quiz:", error);
+      alert("Error submitting quiz. Please try again.");
     }
   };
 
@@ -198,12 +303,22 @@ export default function TakeQuiz() {
     }).toLowerCase();
   };
 
+  const formatTimeRemaining = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   if (error) {
     return (
       <div className="p-4">
-        <Alert variant="danger">{error}</Alert>
-        <Button onClick={() => router.push(`/Courses/${cid}/Quizzes`)}>
-          Back to Quizzes
+        <Alert variant="warning">
+          <h5>Cannot Take Quiz</h5>
+          <p>{error}</p>
+          <small>Redirecting to quiz details...</small>
+        </Alert>
+        <Button onClick={() => router.push(`/Courses/${cid}/Quizzes/${qid}`)}>
+          Go to Quiz Details Now
         </Button>
       </div>
     );
@@ -215,26 +330,30 @@ export default function TakeQuiz() {
     const totalPoints = quiz.questions?.reduce((sum: number, q: any) => sum + (q.points || 0), 0) || 0;
     const safePercentage = totalPoints > 0 ? ((attempt.score / totalPoints) * 100).toFixed(2) : "0.00";
     
-    // Determine if we should show detailed answers
     const isLastAttempt = !quiz.multipleAttempts || attempt.attemptNumber >= quiz.howManyAttempts;
-    const showDetailedAnswers = 
-      isLastAttempt || // Single attempt OR last attempt
-      quiz.showCorrectAnswers !== "NEVER"; // Faculty override
+    const showDetailedAnswers = isLastAttempt || quiz.showCorrectAnswers === "IMMEDIATELY";
     
     return (
       <div id="wd-take-quiz" className="p-4">
         <Alert variant="success">
-          <h4>Quiz Submitted!</h4>
-          <p>Score: {attempt.score} / {totalPoints}</p>
-          <p>Percentage: {safePercentage}%</p>
-          <p className="mb-0">
-            <small>Attempt {attempt.attemptNumber} of {quiz.howManyAttempts || 1}</small>
-          </p>
+          <h4>Quiz Submitted Successfully! ✓</h4>
+          <div className="mt-3">
+            <h5>Your Score: {attempt.score} / {totalPoints} points</h5>
+            <p className="mb-2">Percentage: {safePercentage}%</p>
+            <p className="mb-2">
+              <small>Attempt {attempt.attemptNumber} of {quiz.howManyAttempts || 1}</small>
+            </p>
+            <hr />
+            <p className="mb-0 text-info">
+              <strong>Redirecting to Quizzes page in {redirectCountdown} seconds...</strong>
+            </p>
+            <small className="text-muted">Your score will be displayed on the Quizzes list.</small>
+          </div>
         </Alert>
 
         {showDetailedAnswers ? (
           <>
-            <h4 className="mt-4">Results:</h4>
+            <h4 className="mt-4">Detailed Results:</h4>
             {quiz.questions?.map((question: any, index: number) => (
               <div 
                 key={question._id} 
@@ -271,20 +390,31 @@ export default function TakeQuiz() {
           </Alert>
         )}
 
-        <Button variant="primary" onClick={() => router.push(`/Courses/${cid}/Quizzes`)}>
-          Back to Quizzes
-        </Button>
-        {quiz.multipleAttempts && attempt.attemptNumber < quiz.howManyAttempts && (
+        <div className="mt-4 d-flex gap-2">
           <Button 
-            variant="danger" 
-            className="ms-2"
-            onClick={() => router.push(`/Courses/${cid}/Quizzes/${qid}`)}
+            variant="primary" 
+            onClick={() => router.push(`/Courses/${cid}/Quizzes`)}
           >
-            Take Quiz Again
+            Go to Quizzes Now
           </Button>
-        )}
+          {quiz.multipleAttempts && attempt.attemptNumber < quiz.howManyAttempts && (
+            <Button 
+              variant="danger"
+              onClick={() => {
+                setRedirectCountdown(999);
+                router.push(`/Courses/${cid}/Quizzes/${qid}`);
+              }}
+            >
+              Take Quiz Again
+            </Button>
+          )}
+        </div>
       </div>
     );
+  }
+
+  if (!quiz.questions || quiz.questions.length === 0) {
+    return <div className="p-4">No questions available</div>;
   }
 
   const currentQuestion = quiz.questions[currentQuestionIndex];
@@ -322,21 +452,36 @@ export default function TakeQuiz() {
                   marginBottom: '0.5rem',
                   display: 'flex',
                   alignItems: 'center',
+                  justifyContent: 'space-between',
                   fontSize: '0.8rem'
                 }}
               >
-                <span style={{ color: '#0c5460', marginRight: '0.5rem' }}>ⓘ</span>
-                <span style={{ color: '#0c5460' }}>
-                  {(() => {
-                    const totalPoints = quiz.questions?.reduce((sum: number, q: any) => sum + (q.points || 0), 0) || 0;
-                    return `This quiz has ${quiz.questions?.length || 0} questions worth ${totalPoints} points.`;
-                  })()}
-                  {quiz.timeLimit && ` Time limit: ${quiz.timeLimit} minutes.`}
-                </span>
+                <div>
+                  <span style={{ color: '#0c5460', marginRight: '0.5rem' }}>ⓘ</span>
+                  <span style={{ color: '#0c5460' }}>
+                    This quiz has {quiz.questions?.length || 0} questions worth {quiz.questions?.reduce((sum: number, q: any) => sum + (q.points || 0), 0) || 0} points.
+                  </span>
+                </div>
+                
+                {quiz.timeLimit && timeRemaining !== null && (
+                  <div 
+                    style={{ 
+                      backgroundColor: timeRemaining < 60 ? '#f8d7da' : 'white',
+                      color: timeRemaining < 60 ? '#721c24' : '#0c5460',
+                      padding: '0.3rem 0.8rem',
+                      borderRadius: '0.25rem',
+                      fontWeight: 'bold',
+                      fontSize: '0.9rem',
+                      border: `2px solid ${timeRemaining < 60 ? '#f5c6cb' : '#bee5eb'}`
+                    }}
+                  >
+                    ⏱️ Time: {formatTimeRemaining(timeRemaining)}
+                  </div>
+                )}
               </div>
 
               <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
-                Started: {formatDateTime(startTime)} | Quiz Instructions: {quiz.description || 'Complete all questions to the best of your ability.'}
+                Started: {formatDateTime(startTime)}
               </div>
             </div>
 
@@ -572,7 +717,7 @@ export default function TakeQuiz() {
                       style={{ 
                         marginRight: '0.5rem',
                         fontSize: '1rem',
-                        color: answers[question._id] ? '#dc2626' : '#9ca3af',
+                        color: answers[question._id] !== undefined ? '#dc2626' : '#9ca3af',
                         display: 'inline-flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -582,7 +727,7 @@ export default function TakeQuiz() {
                         border: '2px solid currentColor'
                       }}
                     >
-                      ?
+                      {answers[question._id] !== undefined ? '✓' : '?'}
                     </span>
                     <span 
                       style={{ 
@@ -598,28 +743,6 @@ export default function TakeQuiz() {
               </div>
             </div>
           </div>
-        )}
-
-        {!showSidebar && (
-          <button
-            onClick={() => setShowSidebar(true)}
-            style={{
-              position: 'fixed',
-              right: '1rem',
-              bottom: '1rem',
-              backgroundColor: '#3b82f6',
-              color: 'white',
-              padding: '0.75rem',
-              borderRadius: '9999px',
-              border: 'none',
-              boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-              cursor: 'pointer',
-              zIndex: 50,
-              display: typeof window !== 'undefined' && window.innerWidth < 768 ? 'block' : 'none'
-            }}
-          >
-            ←
-          </button>
         )}
       </div>
     </div>

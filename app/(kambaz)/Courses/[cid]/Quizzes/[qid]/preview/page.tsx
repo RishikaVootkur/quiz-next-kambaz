@@ -130,35 +130,45 @@ export default function QuizPreview() {
   if (!quiz) return <div className="p-4">Loading...</div>;
 
   if (showResults) {
-  const totalPoints = quiz.questions?.reduce((sum: number, q: any) => sum + (q.points || 0), 0) || 0;
-  
-  return (
-    <div id="wd-quiz-preview" className="p-4">
-      <div className="alert alert-success">
-        <h4>Quiz Submitted!</h4>
-        <p>Score: {score} / {totalPoints}</p>
-      </div>
-
-      {quiz.questions?.map((question: any, index: number) => (
-        <div key={question._id} className={`card mb-3 ${isCorrect(question) ? 'border-success' : 'border-danger'}`}>
-          <div className="card-body">
-            <h5>
-              Question {index + 1} ({question.points} pts) {isCorrect(question) ? "✓" : "✗"}
-            </h5>
-            <div dangerouslySetInnerHTML={{ __html: question.question }} />
-            <p className="mt-2"><strong>Your answer:</strong> {String(answers[question._id])}</p>
-          </div>
+    const totalPoints = quiz.questions?.reduce((sum: number, q: any) => sum + (q.points || 0), 0) || 0;
+    
+    return (
+      <div id="wd-quiz-preview" className="p-4">
+        <div className="alert alert-success">
+          <h4>Quiz Submitted!</h4>
+          <p>Score: {score} / {totalPoints}</p>
         </div>
-      ))}
 
-      <Button variant="primary" onClick={() => router.back()}>
-        Back to Quiz
-      </Button>
-    </div>
-  );
-}
+        {quiz.questions?.map((question: any, index: number) => (
+          <div key={question._id} className={`card mb-3 ${isCorrect(question) ? 'border-success' : 'border-danger'}`}>
+            <div className="card-body">
+              <h5>
+                Question {index + 1} ({question.points} pts) {isCorrect(question) ? "✓" : "✗"}
+              </h5>
+              <div dangerouslySetInnerHTML={{ __html: question.question }} />
+              <p className="mt-2"><strong>Your answer:</strong> {String(answers[question._id])}</p>
+            </div>
+          </div>
+        ))}
+
+        <Button variant="primary" onClick={() => router.back()}>
+          Back to Quiz
+        </Button>
+      </div>
+    );
+  }
+
+  // SAFETY CHECK: Make sure we have questions and valid index
+  if (!quiz.questions || quiz.questions.length === 0) {
+    return <div className="p-4">No questions available</div>;
+  }
 
   const currentQuestion = quiz.questions[currentQuestionIndex];
+  
+  // ADDITIONAL SAFETY CHECK
+  if (!currentQuestion) {
+    return <div className="p-4">Loading question...</div>;
+  }
 
   return (
     <div id="wd-quiz-preview" style={{ minHeight: '100vh', backgroundColor: '#f8f9fa' }}>
@@ -236,7 +246,7 @@ export default function QuizPreview() {
                     </h3>
                   </div>
                   <span style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-                    {currentQuestion.points} pts
+                    {currentQuestion.points || 0} pts
                   </span>
                 </div>
 
