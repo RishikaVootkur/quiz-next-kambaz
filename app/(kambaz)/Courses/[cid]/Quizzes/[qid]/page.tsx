@@ -17,32 +17,71 @@ export default function QuizDetails() {
   const [showAccessCodeModal, setShowAccessCodeModal] = useState(false);
   const [enteredAccessCode, setEnteredAccessCode] = useState("");
   const [accessCodeError, setAccessCodeError] = useState("");
+  const [latestAttempt, setLatestAttempt] = useState<any>(null);
+  const [attemptCount, setAttemptCount] = useState(0);
   
   const { currentUser } = useSelector((state: RootState) => state.accountReducer);
   const isFaculty = currentUser?.role === "FACULTY";
   const isAdmin = currentUser?.role === "ADMIN";
+  const isStudent = !isFaculty && !isAdmin;
 
   useEffect(() => {
     const fetchQuiz = async () => {
       try {
         const quizData = await client.findQuizById(qid);
         setQuiz(quizData);
+
+        // Fetch student's latest attempt
+        if (isStudent) {
+          try {
+            const latest = await client.getLatestAttempt(qid);
+            setLatestAttempt(latest);
+            
+            const attempts = await client.getAttemptsForQuiz(qid);
+            setAttemptCount(attempts.length);
+          } catch (error) {
+            console.error("No attempts found");
+            setLatestAttempt(null);
+            setAttemptCount(0);
+          }
+        }
       } catch (error) {
         console.error("Error fetching quiz:", error);
       }
     };
     fetchQuiz();
-  }, [qid]);
+  }, [qid, isStudent]);
 
   if (!quiz) return <div>Loading...</div>;
 
+  const canTakeQuiz = () => {
+    // No attempt yet - can take
+    if (!latestAttempt || !latestAttempt.submittedAt) return true;
+    
+    // Single attempt only - can't retake
+    if (!quiz.multipleAttempts) return false;
+    
+    // Multiple attempts - check if any remaining
+    return attemptCount < quiz.howManyAttempts;
+  };
+
   const handleStartQuiz = () => {
-    // Check if access code is required
-    if (quiz.accessCode && quiz.accessCode.trim() !== "" && !isFaculty && !isAdmin) {
+    // Check if can take quiz
+    if (!canTakeQuiz()) {
+      alert("You have used all your attempts for this quiz.");
+      return;
+    }
+
+    // Check access code
+    if (quiz.accessCode && quiz.accessCode.trim() !== "") {
       setShowAccessCodeModal(true);
     } else {
       router.push(`/Courses/${cid}/Quizzes/${qid}/take`);
     }
+  };
+
+  const handleViewResults = () => {
+    router.push(`/Courses/${cid}/Quizzes/${qid}/results`);
   };
 
   const handleAccessCodeSubmit = () => {
@@ -64,11 +103,14 @@ export default function QuizDetails() {
     router.push(`/Courses/${cid}/Quizzes/${qid}/edit`);
   };
 
+  const totalPoints = quiz.questions?.reduce((sum: number, q: any) => sum + (q.points || 0), 0) || 0;
+
   return (
     <div id="wd-quiz-details" className="p-4">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2>{quiz.title}</h2>
         <div className="d-flex gap-2">
+          {/* Faculty/Admin Buttons */}
           {(isFaculty || isAdmin) && (
             <>
               <Button variant="light" onClick={handlePreview}>
@@ -79,18 +121,55 @@ export default function QuizDetails() {
               </Button>
             </>
           )}
-          {!isFaculty && !isAdmin && (
-            <Button variant="danger" onClick={handleStartQuiz}>
-              Start Quiz
-            </Button>
+          
+          {/* Student Buttons */}
+          {isStudent && (
+            <>
+              {latestAttempt && latestAttempt.submittedAt && (
+                <Button variant="primary" onClick={handleViewResults}>
+                  View Results
+                </Button>
+              )}
+              
+              {canTakeQuiz() && (
+                <Button variant="danger" onClick={handleStartQuiz}>
+                  {latestAttempt && latestAttempt.submittedAt 
+                    ? `Retake Quiz (${attemptCount}/${quiz.howManyAttempts})` 
+                    : "Start Quiz"}
+                </Button>
+              )}
+            </>
           )}
         </div>
       </div>
 
+              {/* Student's Last Attempt Score */}
+        {isStudent && latestAttempt && latestAttempt.submittedAt && (
+          (() => {
+            // Calculate correct total points from quiz questions
+            const totalPoints = quiz.questions?.reduce((sum: number, q: any) => sum + (q.points || 0), 0) || 0;
+            const maxScore = totalPoints > 0 ? totalPoints : latestAttempt.maxScore;
+            const percentage = maxScore > 0 ? ((latestAttempt.score / maxScore) * 100).toFixed(2) : "0.00";
+            
+            return (
+              <Alert variant="info" className="mb-4">
+                <strong>Your Last Attempt:</strong> {latestAttempt.score} / {maxScore} points ({percentage}%)
+                <br />
+                <small>Submitted: {new Date(latestAttempt.submittedAt).toLocaleString()}</small>
+                {canTakeQuiz() && quiz.multipleAttempts && (
+                  <div className="mt-2">
+                    <small>You have {quiz.howManyAttempts - attemptCount} attempt(s) remaining.</small>
+                  </div>
+                )}
+              </Alert>
+            );
+          })()
+        )}
+
       <div className="card">
         <div className="card-body">
-          {/* Student View - Limited Info */}
-          {!isFaculty && !isAdmin && (
+          {/* Student View */}
+          {isStudent && (
             <>
               <h5 className="mb-3">Quiz Information</h5>
               <table className="table">
@@ -101,7 +180,7 @@ export default function QuizDetails() {
                   </tr>
                   <tr>
                     <td className="fw-bold">Points</td>
-                    <td>{quiz.questions?.reduce((sum: number, q: any) => sum + (q.points || 0), 0) || 0}</td>
+                    <td>{totalPoints}</td>
                   </tr>
                   <tr>
                     <td className="fw-bold">Number of Questions</td>
@@ -118,8 +197,8 @@ export default function QuizDetails() {
                   {quiz.accessCode && quiz.accessCode.trim() !== "" && (
                     <tr>
                       <td className="fw-bold">Access Code</td>
-                      <td className="text">
-                        🔒 This quiz requires an access code. Contact your professor for the code.
+                      <td className="text-muted">
+                        🔒 This quiz requires an access code
                       </td>
                     </tr>
                   )}
@@ -145,7 +224,7 @@ export default function QuizDetails() {
             </>
           )}
 
-          {/* Faculty/Admin View - Full Info */}
+          {/* Faculty/Admin View */}
           {(isFaculty || isAdmin) && (
             <>
               <table className="table">
@@ -156,7 +235,7 @@ export default function QuizDetails() {
                   </tr>
                   <tr>
                     <td className="fw-bold">Points</td>
-                    <td>{quiz.questions?.reduce((sum: number, q: any) => sum + (q.points || 0), 0) || 0}</td>
+                    <td>{totalPoints}</td>
                   </tr>
                   <tr>
                     <td className="fw-bold">Assignment Group</td>
@@ -175,6 +254,10 @@ export default function QuizDetails() {
                     <td>{quiz.multipleAttempts ? `Yes (${quiz.howManyAttempts} attempts)` : "No"}</td>
                   </tr>
                   <tr>
+                    <td className="fw-bold">View Responses</td>
+                    <td>{quiz.viewResponses || "Always"}</td>
+                  </tr>
+                  <tr>
                     <td className="fw-bold">Show Correct Answers</td>
                     <td>{quiz.showCorrectAnswers}</td>
                   </tr>
@@ -187,24 +270,20 @@ export default function QuizDetails() {
                     <td>{quiz.oneQuestionAtATime ? "Yes" : "No"}</td>
                   </tr>
                   <tr>
-                    <td className="fw-bold">Webcam Required</td>
-                    <td>{quiz.webcamRequired ? "Yes" : "No"}</td>
-                  </tr>
-                  <tr>
-                    <td className="fw-bold">Lock Questions After Answering</td>
-                    <td>{quiz.lockQuestionsAfterAnswering ? "Yes" : "No"}</td>
-                  </tr>
-                  <tr>
-                    <td className="fw-bold">View Responses</td>
-                    <td>{quiz.viewResponses || "Always"}</td>
-                  </tr>
-                  <tr>
                     <td className="fw-bold">Require Respondus LockDown Browser</td>
                     <td>{quiz.requireRespondusLockDown ? "Yes" : "No"}</td>
                   </tr>
                   <tr>
                     <td className="fw-bold">Required to View Quiz Results</td>
                     <td>{quiz.requiredToViewQuizResults ? "Yes" : "No"}</td>
+                  </tr>
+                  <tr>
+                    <td className="fw-bold">Webcam Required</td>
+                    <td>{quiz.webcamRequired ? "Yes" : "No"}</td>
+                  </tr>
+                  <tr>
+                    <td className="fw-bold">Lock Questions After Answering</td>
+                    <td>{quiz.lockQuestionsAfterAnswering ? "Yes" : "No"}</td>
                   </tr>
                 </tbody>
               </table>
@@ -252,6 +331,11 @@ export default function QuizDetails() {
               onChange={(e) => setEnteredAccessCode(e.target.value)}
               placeholder="Enter access code"
               autoFocus
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  handleAccessCodeSubmit();
+                }
+              }}
             />
           </Form.Group>
         </Modal.Body>

@@ -6,6 +6,7 @@ import { useSelector } from "react-redux";
 import { RootState } from "../../../../../store";
 import { Button, Alert } from "react-bootstrap";
 import * as client from "../../client";
+
 export default function TakeQuiz() {
   const params = useParams();
   const router = useRouter();
@@ -31,19 +32,18 @@ export default function TakeQuiz() {
         const quizData = await client.findQuizById(qid);
         setQuiz(quizData);
 
-        // For faculty/admin, create a mock attempt for preview purposes
         if (isFaculty || isAdmin) {
           setAttempt({
             _id: 'preview-attempt',
             quizId: qid,
             userId: currentUser._id,
             score: 0,
-            maxScore: quizData.points
+            maxScore: quizData.points,
+            attemptNumber: 1
           });
           return;
         }
 
-        // For students, check attempt limits
         const attempts = await client.getAttemptsForQuiz(qid);
         const attemptCount = attempts.length;
 
@@ -61,14 +61,14 @@ export default function TakeQuiz() {
         setAttempt(newAttempt);
       } catch (error: any) {
         console.error("Error initializing quiz:", error);
-        // For faculty, still allow them to take quiz even if attempt creation fails
         if (isFaculty || isAdmin) {
           setAttempt({
             _id: 'preview-attempt',
             quizId: qid,
             userId: currentUser?._id,
             score: 0,
-            maxScore: 0
+            maxScore: 0,
+            attemptNumber: 1
           });
         } else {
           setError(error.response?.data?.message || "Failed to start quiz");
@@ -107,7 +107,6 @@ export default function TakeQuiz() {
   const handleSubmit = async () => {
     if (window.confirm("Are you sure you want to submit this quiz?")) {
       try {
-        // Faculty/Admin don't actually submit, just show results
         if (isFaculty || isAdmin) {
           let calculatedScore = 0;
           
@@ -140,16 +139,16 @@ export default function TakeQuiz() {
           setAttempt({
             ...attempt,
             score: calculatedScore,
+            attemptNumber: 1,
             answers: quiz.questions.map((q: any) => ({
               questionId: q._id,
-              isCorrect: false // Will be calculated in results
+              isCorrect: false
             }))
           });
           setSubmitted(true);
           return;
         }
 
-        // For students, submit normally
         const answersArray = Object.keys(answers).map(questionId => ({
           questionId,
           answer: answers[questionId]
@@ -214,16 +213,26 @@ export default function TakeQuiz() {
 
   if (submitted) {
     const totalPoints = quiz.questions?.reduce((sum: number, q: any) => sum + (q.points || 0), 0) || 0;
+    const safePercentage = totalPoints > 0 ? ((attempt.score / totalPoints) * 100).toFixed(2) : "0.00";
+    
+    // Determine if we should show detailed answers
+    const isLastAttempt = !quiz.multipleAttempts || attempt.attemptNumber >= quiz.howManyAttempts;
+    const showDetailedAnswers = 
+      isLastAttempt || // Single attempt OR last attempt
+      quiz.showCorrectAnswers !== "NEVER"; // Faculty override
     
     return (
       <div id="wd-take-quiz" className="p-4">
         <Alert variant="success">
           <h4>Quiz Submitted!</h4>
           <p>Score: {attempt.score} / {totalPoints}</p>
-          <p>Percentage: {((attempt.score / totalPoints) * 100).toFixed(2)}%</p>
+          <p>Percentage: {safePercentage}%</p>
+          <p className="mb-0">
+            <small>Attempt {attempt.attemptNumber} of {quiz.howManyAttempts || 1}</small>
+          </p>
         </Alert>
 
-        {quiz.showCorrectAnswers !== "NEVER" && (
+        {showDetailedAnswers ? (
           <>
             <h4 className="mt-4">Results:</h4>
             {quiz.questions?.map((question: any, index: number) => (
@@ -239,20 +248,41 @@ export default function TakeQuiz() {
                   <p className="mt-2">
                     <strong>Your answer:</strong> {String(answers[question._id])}
                   </p>
-                  {!isCorrectAnswer(question._id) && (
+                  {!isCorrectAnswer(question._id) ? (
                     <p className="text-danger">
                       <strong>Status:</strong> Incorrect
+                    </p>
+                  ) : (
+                    <p className="text-success">
+                      <strong>Status:</strong> Correct - {question.points} points earned
                     </p>
                   )}
                 </div>
               </div>
             ))}
           </>
+        ) : (
+          <Alert variant="info" className="mt-4">
+            <h5>Answers Hidden</h5>
+            <p className="mb-0">
+              You have {quiz.howManyAttempts - attempt.attemptNumber} attempt(s) remaining. 
+              Detailed answers will be shown after you complete all attempts.
+            </p>
+          </Alert>
         )}
 
         <Button variant="primary" onClick={() => router.push(`/Courses/${cid}/Quizzes`)}>
           Back to Quizzes
         </Button>
+        {quiz.multipleAttempts && attempt.attemptNumber < quiz.howManyAttempts && (
+          <Button 
+            variant="danger" 
+            className="ms-2"
+            onClick={() => router.push(`/Courses/${cid}/Quizzes/${qid}`)}
+          >
+            Take Quiz Again
+          </Button>
+        )}
       </div>
     );
   }
@@ -297,10 +327,11 @@ export default function TakeQuiz() {
               >
                 <span style={{ color: '#0c5460', marginRight: '0.5rem' }}>ⓘ</span>
                 <span style={{ color: '#0c5460' }}>
-                {(() => {
-                  const totalPoints = quiz.questions?.reduce((sum: number, q: any) => sum + (q.points || 0), 0) || 0;
-                  return `This quiz has ${quiz.questions?.length || 0} questions worth ${totalPoints} points.`;
-                })()}                  {quiz.timeLimit && ` Time limit: ${quiz.timeLimit} minutes.`}
+                  {(() => {
+                    const totalPoints = quiz.questions?.reduce((sum: number, q: any) => sum + (q.points || 0), 0) || 0;
+                    return `This quiz has ${quiz.questions?.length || 0} questions worth ${totalPoints} points.`;
+                  })()}
+                  {quiz.timeLimit && ` Time limit: ${quiz.timeLimit} minutes.`}
                 </span>
               </div>
 
